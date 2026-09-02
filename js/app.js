@@ -1,6 +1,9 @@
 /* QC Pulse — IQC + IPQC data entry & analytics (local-first, optional Apps Script sync) */
 const IQC_KEY="iqcEntriesPulse", IPQC_KEY="ipqcEntriesPulse", SEC_KEY="ipqcSecPulse";
 const LS_IQC_EP="iqcEp", LS_IPQC_EP="ipqcEp";
+// IQC Master Data Apps Script Web App (bound to sheet 1hKodbuw1pAEzk91qiEw0WeqxY2byEuTZfKRgpqUFBNo)
+const IQC_DEFAULT_EP="https://script.google.com/macros/s/AKfycbxyHoHZ6DG6rZLIgAgev5Nl0XbLO2Sx-IlZ68B-I7uhqS75cPBRpr0GBB2W7Opt1smz/exec";
+const getIqcEp=()=>localStorage.getItem(LS_IQC_EP)||IQC_DEFAULT_EP;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}};
@@ -67,7 +70,7 @@ async function iqcSubmit(e){e.preventDefault();
   ts:new Date().toISOString()};
  if(!rec.lot||!rec.dateRec||!rec.odm||!rec.code||!rec.desc||rec.lotSize<=0||rec.sample<=0){toast("Please fill all IQC required fields.","error");return;}
  iqcEntries.push(rec);save(IQC_KEY,iqcEntries);renderHistory("iqc");
- const msg=$("iqc-save-msg"),ep=localStorage.getItem(LS_IQC_EP);
+ const msg=$("iqc-save-msg"),ep=getIqcEp();
  if(ep){try{await postEp(ep,rec);msg.textContent="Saved & synced to Google Sheet ✓";msg.className="save-msg ok";}
   catch(err){msg.textContent="Saved locally (sync pending)";msg.className="save-msg ok";}}
  else{msg.textContent="Saved locally ✓";msg.className="save-msg ok";}
