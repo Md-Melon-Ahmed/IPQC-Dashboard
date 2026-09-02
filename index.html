@@ -1,250 +1,308 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IQC & IPQC Data Entry Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<title>QC Pulse — IQC & IPQC Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<header>
-  <div class="header-inner">
-    <div class="brand">
-      <h1>Quality Control Dashboard</h1>
-      <p>Akij Light Engineering Ltd. — IQC (Incoming) &amp; IPQC (In-Process) Data Entry</p>
+<!-- Ambient background -->
+<div id="bg-elements">
+  <div class="bg-dots"></div>
+  <div class="orb orb-teal"></div>
+  <div class="orb orb-blue"></div>
+</div>
+
+<!-- ================= LANDING ================= -->
+<div id="landing-view" class="view active">
+  <div class="landing-center">
+    <div class="brand-block">
+      <div class="brand-logo">QC</div>
+      <h1 class="brand-title">QC Pulse</h1>
+      <p class="tagline" data-i18n="tagline">Real-Time Quality Control Telemetry &amp; Analytics</p>
     </div>
-    <div class="header-actions">
-      <div id="conn-status" class="conn-status">
-        <span class="dot"></span><span id="conn-text">Local only</span>
-      </div>
-      <button id="btn-settings" class="btn btn-icon" title="Settings">&#9881;</button>
+
+    <div class="capsule">
+      <span class="dot"></span>
+      <p data-i18n="select_workspace">Select Workspace</p>
+    </div>
+
+    <div class="workspace-grid">
+      <button class="glass-card" onclick="openChooser()">
+        <div class="icon-tile teal">+</div>
+        <h3 data-i18n="entry">Entry</h3>
+        <p data-i18n="entry_desc">Record IQC and IPQC inspection data in real time.</p>
+      </button>
+      <button class="glass-card" onclick="openDashboard()">
+        <div class="icon-tile teal">▦</div>
+        <h3 data-i18n="dashboard">Dashboard</h3>
+        <p data-i18n="dashboard_desc">Live QC analytics: FPY, pass rates, defect pareto &amp; more.</p>
+      </button>
+    </div>
+
+    <div class="landing-foot">
+      <span>IQC · IPQC</span>
+      <button class="mini-icon" id="btn-theme-landing" onclick="cycleTheme()" title="Theme"><span class="theme-icon">☀</span></button>
+      <button class="mini-icon" onclick="cycleLang()" title="Language"><span class="lang-icon">বাং</span></button>
+    </div>
+    <div class="version">v2026.09.02</div>
+  </div>
+</div>
+
+<!-- ================= CHOOSER ================= -->
+<div id="chooser-view" class="view">
+  <div class="chooser-center">
+    <div class="capsule">
+      <span class="dot"></span>
+      <p data-i18n="choose_entry">Choose Entry Type</p>
+    </div>
+    <div class="workspace-grid">
+      <button class="glass-card" onclick="showEntry('iqc')">
+        <div class="icon-tile teal">⇥</div>
+        <h3>IQC Entry</h3>
+        <p>Incoming material inspection — AQL lot sampling.</p>
+      </button>
+      <button class="glass-card purple" onclick="showEntry('ipqc')">
+        <div class="icon-tile purple">◉</div>
+        <h3>IPQC Entry</h3>
+        <p>In-process line checks &amp; hourly defect capture.</p>
+      </button>
+    </div>
+    <button class="link-btn" onclick="showLanding()">← <span data-i18n="back_home">Back to Home</span></button>
+  </div>
+</div>
+
+<!-- ================= IQC ENTRY ================= -->
+<div id="iqc-app" class="entry-app">
+  <div class="entry-header">
+    <div class="entry-brand"><span class="brand-logo sm">QC</span><span class="entry-title">IQC — Incoming Quality Control</span></div>
+    <div class="entry-nav">
+      <button class="nav-chip teal" onclick="showEntry('ipqc')" data-i18n="ipqc_entry">IPQC Entry</button>
+      <button class="nav-chip" onclick="openDashboard()" data-i18n="dashboard">Dashboard</button>
+      <button class="nav-chip" id="btn-theme-iqc" onclick="cycleTheme()"><span class="theme-icon">☀</span></button>
+      <button class="nav-chip" onclick="cycleLang()"><span class="lang-icon">বাং</span></button>
     </div>
   </div>
 
-  <!-- Module tabs -->
-  <nav class="tabs" id="module-tabs">
-    <button class="tab active" data-tab="iqc">IQC — Incoming</button>
-    <button class="tab" data-tab="ipqc">IPQC — In-Process</button>
-    <button class="tab" data-tab="analytics">FPY Analytics</button>
-  </nav>
-</header>
+  <form id="iqc-form" class="form-card">
+    <div class="form-section-label">Material / Lot Details</div>
+    <div class="grid-2">
+      <div class="field"><label>LOT / LC No *</label><input type="text" id="iqc-lot" placeholder="e.g. 970" required></div>
+      <div class="field"><label>Month Sheet</label>
+        <select id="iqc-month">
+          <option>Sep-26</option><option>Aug-26</option><option>July-26</option><option>June-26</option>
+          <option>May-26</option><option>Apr-26</option><option>Mar-26</option><option>Feb-26</option><option>Jan-26</option>
+        </select></div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>Date of Received *</label>
+        <div class="date-row"><input type="date" id="iqc-date-rec" required>
+        <button type="button" class="tiny-pill" data-day="rec" onclick="setToday('iqc',this.dataset.day)">Today</button></div></div>
+      <div class="field"><label>Date of Inspection *</label>
+        <div class="date-row"><input type="date" id="iqc-date-ins" required>
+        <button type="button" class="tiny-pill" data-day="ins" onclick="setToday('iqc',this.dataset.day)">Today</button></div></div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>ODM Name *</label><input type="text" id="iqc-odm" list="odm-list" placeholder="Supplier" required></div>
+      <div class="field"><label>Material Code *</label><input type="text" id="iqc-code" placeholder="e.g. 11112710" required></div>
+    </div>
+    <div class="field"><label>Material Description *</label><input type="text" id="iqc-desc" placeholder="Item description" required></div>
 
-<main>
-  <!-- ============ IQC TAB ============ -->
-  <section id="tab-iqc" class="tab-panel active">
-    <div class="card entry-card">
-      <div class="card-head">
-        <h2>IQC Entry — Incoming Material Inspection</h2>
-        <div class="month-picker">
-          <label>Month Sheet</label>
-          <select id="iqc-month">
-            <option value="Sep-26" selected>Sep-26</option>
-            <option value="Aug-26">Aug-26</option>
-            <option value="July-26">July-26</option>
-            <option value="June-26">June-26</option>
-            <option value="May-26">May-26</option>
-            <option value="Apr-26">Apr-26</option>
-            <option value="Mar-26">Mar-26</option>
-            <option value="Feb-26">Feb-26</option>
-            <option value="Jan-26">Jan-26</option>
-          </select>
-        </div>
+    <div class="form-section-label">Sampling &amp; Inspection</div>
+    <div class="grid-2">
+      <div class="field"><label>Lot Size *</label><input type="number" id="iqc-lotsize" min="1" placeholder="Total lot qty" required></div>
+      <div class="field"><label>Sample Qty (AQL) *</label><input type="number" id="iqc-sample" min="1" required></div>
+    </div>
+    <div class="field"><label>Check Status</label>
+      <select id="iqc-status"><option>Complete</option><option>Incomplete</option><option>Pending</option></select></div>
+
+    <div class="form-section-label">Defects (AQL ISO-2859-1 Level II)</div>
+    <div class="grid-3">
+      <div class="field"><label>Critical (0%)</label><input type="number" id="iqc-critical" min="0" value="0"></div>
+      <div class="field"><label>Major (0.65%)</label><input type="number" id="iqc-major" min="0" value="0"></div>
+      <div class="field"><label>Minor (1.5%)</label><input type="number" id="iqc-minor" min="0" value="0"></div>
+    </div>
+    <div class="result-strip">
+      <div class="result-item"><span>Total NG</span><b id="iqc-calc-ng">0</b></div>
+      <div class="result-item"><span>NG %</span><b id="iqc-calc-ngpct">0.00%</b></div>
+      <div class="result-item"><span>Result</span><b id="iqc-calc-result" class="pass">PASSED</b></div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>Fail Description</label><input type="text" id="iqc-faildesc" placeholder="If any"></div>
+      <div class="field"><label>Picture URL</label><input type="url" id="iqc-picture" placeholder="https://… (optional)"></div>
+    </div>
+    <div class="field"><label><span data-i18n="remarks">Remarks</span> <em>(optional)</em></label><input type="text" id="iqc-remarks"></div>
+
+    <button type="submit" class="btn-primary teal" data-i18n="submit_entry">Submit Entry</button>
+    <div id="iqc-save-msg" class="save-msg"></div>
+  </form>
+
+  <div class="history-block">
+    <div class="history-head"><h3>Recent IQC Entries</h3>
+      <button class="btn-sm" onclick="renderHistory('iqc')">Refresh</button></div>
+    <div class="table-wrap"><table><thead>
+      <tr><th>#</th><th>LOT</th><th>Insp Date</th><th>ODM</th><th>Material</th><th>Lot</th><th>Sample</th><th>NG</th><th>NG%</th><th>Result</th></tr>
+    </thead><tbody id="iqc-tbody"></tbody></table></div>
+  </div>
+
+  <div class="app-footer"><span>Akij Light Engineering Ltd.</span><button class="nav-chip" onclick="showLanding()">← Home</button></div>
+</div>
+
+<!-- ================= IPQC ENTRY ================= -->
+<div id="ipqc-app" class="entry-app">
+  <div class="entry-header purple-hd">
+    <div class="entry-brand"><span class="brand-logo sm purple">◉</span><span class="entry-title">IPQC — In-Process Quality Control</span></div>
+    <div class="entry-nav">
+      <button class="nav-chip teal" onclick="showEntry('iqc')">IQC Entry</button>
+      <button class="nav-chip" onclick="openDashboard()" data-i18n="dashboard">Dashboard</button>
+      <button class="nav-chip" id="btn-theme-ipqc" onclick="cycleTheme()"><span class="theme-icon">☀</span></button>
+      <button class="nav-chip" onclick="cycleLang()"><span class="lang-icon">বাং</span></button>
+    </div>
+  </div>
+
+  <div class="mode-toggle" id="ipqc-mode-toggle">
+    <button class="pill active" data-mode="line">Line-Level Check</button>
+    <button class="pill" data-mode="section">Section Roll-up</button>
+  </div>
+
+  <!-- LINE MODE -->
+  <form id="ipqc-form" class="form-card">
+    <div class="grid-2">
+      <div class="field"><label>Section *</label>
+        <select id="ipqc-section">
+          <option>Gang Switch Socket</option><option>Lights</option><option>PSS &amp; Others</option><option>MCB</option>
+          <option>HAP</option><option>SDB</option><option>Exhaust Fan</option><option>PVC Tape</option>
+        </select></div>
+      <div class="field"><label>Assembly Line *</label>
+        <select id="ipqc-line"><option>Table-01</option><option>Table-02</option><option>Table-03</option><option>Table-04</option>
+          <option>Table-05</option><option>Table-06</option><option>Table-07</option><option>Table-08</option></select></div>
+    </div>
+    <div class="grid-3">
+      <div class="field"><label>Date *</label>
+        <div class="date-row"><input type="date" id="ipqc-date" required>
+        <button type="button" class="tiny-pill" onclick="setToday('ipqc')">Today</button></div></div>
+      <div class="field"><label>Hour / Time</label><input type="text" id="ipqc-hour" placeholder="1st hr" value="1st hr"></div>
+      <div class="field"><label>Model / Item Code *</label><input type="text" id="ipqc-code" placeholder="e.g. 14414493" required></div>
+    </div>
+    <div class="field"><label>Item Name *</label><input type="text" id="ipqc-item" placeholder="Item description" required></div>
+    <div class="grid-4">
+      <div class="field"><label>Checked Qty *</label><input type="number" id="ipqc-checked" min="0" required></div>
+      <div class="field"><label>Passed Qty *</label><input type="number" id="ipqc-passed" min="0" required></div>
+      <div class="field"><label>Repaired Passed</label><input type="number" id="ipqc-repaired" min="0" value="0"></div>
+      <div class="field"><label>Failed Qty</label><input type="number" id="ipqc-failed" min="0" value="0"></div>
+    </div>
+
+    <div class="form-section-label">Defect Types (qty per type)</div>
+    <div id="ipqc-defect-rows"></div>
+    <button type="button" class="add-defect" onclick="addDefectRow()">+ Add defect type</button>
+    <div class="defect-total">Total Defective: <span id="ipqc-defect-total">0</span></div>
+
+    <div class="result-strip purple">
+      <div class="result-item"><span>Defect Total</span><b id="ipqc-def-total2">0</b></div>
+      <div class="result-item"><span>FPY</span><b id="ipqc-fpy" class="pass">—</b></div>
+      <div class="result-item"><span>Fail %</span><b id="ipqc-failpct">—</b></div>
+    </div>
+    <div class="field"><label><span data-i18n="remarks">Remarks</span> <em>(optional)</em></label><input type="text" id="ipqc-remarks"></div>
+    <button type="submit" class="btn-primary purple" data-i18n="submit_defect">Submit Defect</button>
+    <div id="ipqc-save-msg" class="save-msg"></div>
+  </form>
+
+  <!-- SECTION MODE -->
+  <form id="ipqc-section-form" class="form-card hidden">
+    <div class="grid-2">
+      <div class="field"><label>Month Sheet *</label>
+        <select id="ipqc-month"><option>Sep-26</option><option>Aug-26</option><option>July-26</option><option>June-26</option>
+          <option>May-26</option><option>Apr-26</option><option>Mar-26</option><option>Feb-26</option><option>Jan-26</option></select></div>
+      <div class="field"><label>Section *</label>
+        <select id="ipqc-sec-name">
+          <option>Gang Switch Socket</option><option>Lights</option><option>PSS &amp; Others</option><option>MCB</option>
+          <option>HAP</option><option>SDB</option><option>Exhaust Fan</option><option>PVC Tape</option>
+        </select></div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>Checked Qty *</label><input type="number" id="ipqc-sec-checked" min="0" required></div>
+      <div class="field"><label>Passed Qty *</label><input type="number" id="ipqc-sec-passed" min="0" required></div>
+    </div>
+    <div class="result-strip purple">
+      <div class="result-item"><span>Section FPY</span><b id="ipqc-sec-fpy" class="pass">—</b></div>
+    </div>
+    <button type="submit" class="btn-primary purple" data-i18n="submit_entry">Submit Roll-up</button>
+    <div id="ipqc-sec-msg" class="save-msg"></div>
+  </form>
+
+  <div class="history-block">
+    <div class="history-head"><h3>Recent IPQC Entries</h3>
+      <button class="btn-sm" onclick="renderHistory('ipqc')">Refresh</button>
+      <button class="btn-sm danger" onclick="clearIpqc()">Clear Local</button></div>
+    <div class="table-wrap"><table><thead>
+      <tr><th>#</th><th>Date</th><th>Section</th><th>Line</th><th>Item</th><th>Checked</th><th>Passed</th><th>Failed</th><th>Def</th><th>FPY</th><th>Remarks</th></tr>
+    </thead><tbody id="ipqc-tbody"></tbody></table></div>
+  </div>
+
+  <div class="app-footer"><span>Akij Light Engineering Ltd.</span><button class="nav-chip" onclick="showLanding()">← Home</button></div>
+</div>
+
+<!-- ================= DASHBOARD ================= -->
+<div id="dashboard-app">
+  <div class="dash-top">
+    <div class="dash-top-left">
+      <span class="brand-logo sm">QC</span>
+      <span class="dash-title">Dashboard <span class="live-dot" title="Live Auto-Sync"></span></span>
+    </div>
+    <div class="dash-top-right">
+      <button class="dash-nav" onclick="showEntry('iqc')">IQC Entry</button>
+      <button class="dash-nav purple" onclick="showEntry('ipqc')">IPQC Entry</button>
+      <button class="dash-nav" id="btn-theme-dash" onclick="cycleTheme()"><span class="theme-icon">☀</span></button>
+      <button class="dash-nav" onclick="cycleLang()"><span class="lang-icon">বাং</span></button>
+      <button class="dash-nav" onclick="showLanding()">Home</button>
+    </div>
+  </div>
+
+  <div class="dash-tabbar">
+    <button class="tab active" data-tab="iqc">IQC Status</button>
+    <button class="tab" data-tab="ipqc">IPQC Quality</button>
+  </div>
+
+  <div class="dash-scroll">
+    <!-- IQC summary -->
+    <div id="dash-iqc" class="dash-view active">
+      <div class="kpi-row" id="iqc-kpis"></div>
+      <div class="charts-grid">
+        <div class="chart-card"><div class="chart-head"><h3>IQC Pass Rate Trend</h3></div><div id="chart-iqc-trend"></div></div>
+        <div class="chart-card"><div class="chart-head"><h3>IQC Pass / Fail (by month)</h3></div><div id="chart-iqc-donut"></div></div>
       </div>
-      <form id="iqc-form" autocomplete="off">
-        <div class="form-grid">
-          <div class="field"><label>LOT / LC No *</label><input type="text" id="iqc-lot" placeholder="e.g. 970" required></div>
-          <div class="field"><label>Date of Received *</label><input type="date" id="iqc-date-rec" required></div>
-          <div class="field"><label>Date of Inspection *</label><input type="date" id="iqc-date-ins" required></div>
-          <div class="field"><label>ODM Name *</label><input type="text" id="iqc-odm" list="iqc-odm-list" placeholder="Supplier" required>
-            <datalist id="iqc-odm-list"></datalist></div>
-          <div class="field"><label>Material Code *</label><input type="text" id="iqc-code" placeholder="e.g. 11112710" required></div>
-          <div class="field"><label>Material Description *</label><input type="text" id="iqc-desc" placeholder="Item description" required></div>
-          <div class="field"><label>Lot Size *</label><input type="number" id="iqc-lotsize" min="1" placeholder="Total lot qty" required></div>
-          <div class="field"><label>Sample Qty (AQL) *</label><input type="number" id="iqc-sample" min="1" required></div>
-          <div class="field"><label>Check Status</label>
-            <select id="iqc-status"><option>Complete</option><option>Incomplete</option><option>Pending</option></select></div>
-          <div class="field"><label>Critical (0%)</label><input type="number" id="iqc-critical" min="0" value="0"></div>
-          <div class="field"><label>Major (0.65%)</label><input type="number" id="iqc-major" min="0" value="0"></div>
-          <div class="field"><label>Minor (1.5%)</label><input type="number" id="iqc-minor" min="0" value="0"></div>
-          <div class="field"><label>Fail Description</label><input type="text" id="iqc-faildesc" placeholder="If any"></div>
-          <div class="field"><label>Picture URL</label><input type="url" id="iqc-picture" placeholder="https://... (optional)"></div>
-          <div class="field"><label>Remarks</label><input type="text" id="iqc-remarks"></div>
-        </div>
-        <div class="calc-row">
-          <div class="calc-item"><span class="calc-label">Total NG</span><span class="calc-value" id="iqc-calc-ng">0</span></div>
-          <div class="calc-item"><span class="calc-label">NG %</span><span class="calc-value" id="iqc-calc-ngpct">0.00%</span></div>
-          <div class="calc-item"><span class="calc-label">Result</span><span class="calc-value pass" id="iqc-calc-result">PASSED</span></div>
-        </div>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Save IQC Entry</button>
-          <button type="button" class="btn" id="iqc-reset">Reset</button>
-          <span id="iqc-save-msg" class="save-msg"></span>
-        </div>
-      </form>
-    </div>
-  </section>
-
-  <!-- ============ IPQC TAB ============ -->
-  <section id="tab-ipqc" class="tab-panel">
-    <div class="mode-toggle" id="ipqc-mode-toggle">
-      <button class="btn btn-mode active" data-mode="line">Line-Level Entry</button>
-      <button class="btn btn-mode" data-mode="section">Section Roll-up</button>
+      <div class="chart-card wide"><div class="chart-head"><h3>Daily IQC Matrix</h3><button class="csv-btn" onclick="exportIQCCSV()">CSV</button></div>
+        <div class="table-wrap"><table><thead><tr><th>Date</th><th>LOT</th><th>ODM</th><th>Material</th><th>Lot</th><th>Sample</th><th>NG</th><th>NG%</th><th>Result</th></tr></thead>
+        <tbody id="iqc-matrix"></tbody></table></div></div>
     </div>
 
-    <!-- Line-level entry -->
-    <div id="ipqc-line-form-wrap" class="card entry-card">
-      <div class="card-head"><h2>IPQC Line Check — In-Process Inspection</h2></div>
-      <form id="ipqc-form" autocomplete="off">
-        <div class="form-grid">
-          <div class="field"><label>Section *</label>
-            <select id="ipqc-section">
-              <option value="Gang Switch Socket">Gang Switch Socket</option>
-              <option value="Lights">Lights</option>
-              <option value="PSS &amp; Others">PSS &amp; Others</option>
-              <option value="MCB">MCB</option>
-              <option value="HAP">HAP</option>
-              <option value="SDB">SDB</option>
-              <option value="Exhaust Fan">Exhaust Fan</option>
-              <option value="PVC Tape">PVC Tape</option>
-            </select></div>
-          <div class="field"><label>Assembly Line *</label>
-            <select id="ipqc-line">
-              <option>Table-01</option><option>Table-02</option><option>Table-03</option><option>Table-04</option>
-              <option>Table-05</option><option>Table-06</option><option>Table-07</option><option>Table-08</option>
-            </select></div>
-          <div class="field"><label>Date *</label><input type="date" id="ipqc-date" required></div>
-          <div class="field"><label>Hour / Time</label><input type="text" id="ipqc-hour" placeholder="e.g. 1st hr, 2nd hr" value="1st hr"></div>
-          <div class="field"><label>Model / Item Code *</label><input type="text" id="ipqc-code" placeholder="e.g. 14414493" required></div>
-          <div class="field"><label>Item Name *</label><input type="text" id="ipqc-item" placeholder="Item description" required></div>
-          <div class="field"><label>Checked Qty *</label><input type="number" id="ipqc-checked" min="0" required></div>
-          <div class="field"><label>Passed Qty *</label><input type="number" id="ipqc-passed" min="0" required></div>
-          <div class="field"><label>Repaired Passed Qty</label><input type="number" id="ipqc-repaired" min="0" value="0"></div>
-          <div class="field"><label>Failed Qty</label><input type="number" id="ipqc-failed" min="0" value="0"></div>
-          <div class="field full"><label>Defect Quantities (optional)</label></div>
-          <div class="field"><label>Connection Problem</label><input type="number" class="ipqc-defect" data-def="connection" min="0" value="0"></div>
-          <div class="field"><label>Circuit Damage</label><input type="number" class="ipqc-defect" data-def="circuit" min="0" value="0"></div>
-          <div class="field"><label>Scratch</label><input type="number" class="ipqc-defect" data-def="scratch" min="0" value="0"></div>
-          <div class="field"><label>Spot</label><input type="number" class="ipqc-defect" data-def="spot" min="0" value="0"></div>
-          <div class="field"><label>Improper Print</label><input type="number" class="ipqc-defect" data-def="print" min="0" value="0"></div>
-          <div class="field"><label>Improper Fitting</label><input type="number" class="ipqc-defect" data-def="fitting" min="0" value="0"></div>
-          <div class="field"><label>Color Defect</label><input type="number" class="ipqc-defect" data-def="color" min="0" value="0"></div>
-          <div class="field"><label>Metal Parts Missing</label><input type="number" class="ipqc-defect" data-def="metal" min="0" value="0"></div>
-          <div class="field"><label>Nut Loose</label><input type="number" class="ipqc-defect" data-def="nut" min="0" value="0"></div>
-          <div class="field"><label>Dirt / Uncleanness</label><input type="number" class="ipqc-defect" data-def="dirt" min="0" value="0"></div>
-          <div class="field"><label>Remarks</label><input type="text" id="ipqc-remarks"></div>
-        </div>
-        <div class="calc-row">
-          <div class="calc-item"><span class="calc-label">Defect Total</span><span class="calc-value" id="ipqc-defect-total">0</span></div>
-          <div class="calc-item"><span class="calc-label">FPY</span><span class="calc-value pass" id="ipqc-fpy">—</span></div>
-          <div class="calc-item"><span class="calc-label">Fail %</span><span class="calc-value" id="ipqc-failpct">—</span></div>
-        </div>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Save IPQC Entry</button>
-          <button type="button" class="btn" id="ipqc-reset">Reset</button>
-          <span id="ipqc-save-msg" class="save-msg"></span>
-        </div>
-      </form>
-    </div>
-
-    <!-- Section roll-up entry -->
-    <div id="ipqc-section-form-wrap" class="card entry-card hidden">
-      <div class="card-head"><h2>IPQC Section Roll-up</h2></div>
-      <form id="ipqc-section-form" autocomplete="off">
-        <div class="form-grid">
-          <div class="field"><label>Month Sheet *</label>
-            <select id="ipqc-month">
-              <option value="Sep-26" selected>Sep-26</option>
-              <option value="Aug-26">Aug-26</option>
-              <option value="July-26">July-26</option>
-              <option value="June-26">June-26</option>
-              <option value="May-26">May-26</option>
-              <option value="Apr-26">Apr-26</option>
-              <option value="Mar-26">Mar-26</option>
-              <option value="Feb-26">Feb-26</option>
-              <option value="Jan-26">Jan-26</option>
-            </select></div>
-          <div class="field"><label>Section *</label>
-            <select id="ipqc-sec-name">
-              <option value="Gang Switch Socket">Gang Switch Socket</option>
-              <option value="Lights">Lights</option>
-              <option value="PSS & Others">PSS & Others</option>
-              <option value="MCB">MCB</option>
-              <option value="HAP">HAP</option>
-              <option value="SDB">SDB</option>
-              <option value="Exhaust Fan">Exhaust Fan</option>
-              <option value="PVC Tape">PVC Tape</option>
-            </select></div>
-          <div class="field"><label>Checked Qty *</label><input type="number" id="ipqc-sec-checked" min="0" required></div>
-          <div class="field"><label>Passed Qty *</label><input type="number" id="ipqc-sec-passed" min="0" required></div>
-          <div class="field"><label>Remarks</label><input type="text" id="ipqc-sec-remarks"></div>
-        </div>
-        <div class="calc-row">
-          <div class="calc-item"><span class="calc-label">Section FPY</span><span class="calc-value pass" id="ipqc-sec-fpy">—</span></div>
-        </div>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Save Section Roll-up</button>
-          <span id="ipqc-sec-save-msg" class="save-msg"></span>
-        </div>
-      </form>
-    </div>
-
-    <!-- Recent IPQC entries -->
-    <div class="card table-card">
-      <div class="card-head">
-        <h2>Recent IPQC Entries</h2>
-        <div><button type="button" class="btn" id="ipqc-load-recent">Load (50)</button>
-        <button type="button" class="btn btn-danger" id="ipqc-clear">Clear Local</button></div>
+    <!-- IPQC quality -->
+    <div id="dash-ipqc" class="dash-view">
+      <div class="kpi-row" id="ipqc-kpis"></div>
+      <div class="charts-grid">
+        <div class="chart-card"><div class="chart-head"><h3>FPY by Section</h3></div><div id="chart-sec"></div></div>
+        <div class="chart-card"><div class="chart-head"><h3>FPY by Date</h3></div><div id="chart-date"></div></div>
       </div>
-      <div class="table-wrap"><table id="ipqc-table">
-        <thead><tr><th>#</th><th>Date</th><th>Section</th><th>Line</th><th>Item</th><th>Checked</th><th>Passed</th><th>Failed</th><th>Defects</th><th>FPY</th><th>Remarks</th></tr></thead>
-        <tbody id="ipqc-tbody"></tbody>
-      </table></div>
-    </div>
-  </section>
-
-  <!-- ============ ANALYTICS TAB ============ -->
-  <section id="tab-analytics" class="tab-panel">
-    <div class="stats" id="analytics-stats">
-      <div class="stat-card"><div class="stat-label">IPQC FPY</div><div class="stat-value" id="an-fpy">—</div></div>
-      <div class="stat-card"><div class="stat-label">IQC Pass Rate</div><div class="stat-value" id="an-iqcrate">—</div></div>
-      <div class="stat-card"><div class="stat-label">Best Section</div><div class="stat-value" id="an-best">—</div></div>
-      <div class="stat-card"><div class="stat-label">IPQC Entries</div><div class="stat-value" id="an-count">0</div></div>
-    </div>
-    <div class="grid">
-      <div class="card"><h2>IPQC FPY by Section</h2><canvas id="an-section-chart" height="120"></canvas></div>
-      <div class="card"><h2>FPY by Date</h2><canvas id="an-date-chart" height="120"></canvas></div>
-    </div>
-    <div class="card"><h2>Detailed FPY Table</h2>
-      <div class="table-wrap"><table id="an-table">
-        <thead><tr><th>Section</th><th>Checked</th><th>Passed</th><th>Failed</th><th>FPY %</th><th>Entries</th></tr></thead>
-        <tbody id="an-tbody"></tbody>
-      </table></div>
-    </div>
-  </section>
-</main>
-
-<!-- Settings modal -->
-<div id="settings-modal" class="modal hidden">
-  <div class="modal-content">
-    <div class="modal-head"><h2>Google Sheets Connection</h2><button class="btn btn-icon" id="btn-close-settings">&times;</button></div>
-    <div class="modal-body">
-      <label>IQC Apps Script URL</label>
-      <input type="text" id="set-iqc-endpoint" placeholder="https://script.google.com/macros/s/.../exec">
-      <label>IPQC Apps Script URL</label>
-      <input type="text" id="set-ipqc-endpoint" placeholder="https://script.google.com/macros/s/.../exec">
-      <p class="hint">Deploy Code.gs (IQC) and IPQC-Code.gs (IPQC) as Web Apps, then paste URLs here. See README.</p>
-      <button type="button" class="btn btn-primary" id="btn-save-settings">Save Settings</button>
-      <span id="settings-msg" class="save-msg"></span>
+      <div class="charts-grid">
+        <div class="chart-card"><div class="chart-head"><h3>Defect Pareto</h3></div><div id="chart-pareto"></div></div>
+        <div class="chart-card"><div class="chart-head"><h3>Volume by Section</h3></div><div id="chart-vol"></div></div>
+      </div>
+      <div class="chart-card wide"><div class="chart-head"><h3>Quality Scorecard</h3><button class="csv-btn" onclick="exportIPQCCSV()">CSV</button></div>
+        <div class="table-wrap"><table><thead><tr><th>Section</th><th>Line</th><th>Item</th><th>Checked</th><th>Passed</th><th>Def</th><th>FPY%</th><th>Status</th></tr></thead>
+        <tbody id="ipqc-scorecard"></tbody></table></div></div>
     </div>
   </div>
 </div>
-<div id="toast" class="toast hidden"></div>
 
-<script src="js/common.js"></script>
-<script src="js/iqc.js"></script>
-<script src="js/ipqc.js"></script>
-<script src="js/analytics.js"></script>
+<div id="toast-container"></div>
+<datalist id="odm-list"></datalist>
+
+<script src="js/app.js"></script>
 </body>
 </html>

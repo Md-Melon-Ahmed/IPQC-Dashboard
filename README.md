@@ -1,54 +1,56 @@
-# IQC & IPQC Data Entry Dashboard
+# QC Pulse — IQC & IPQC Dashboard
 
-A combined **Quality Control** dashboard for **Akij Light Engineering Ltd.** with three modules:
+A quality-control dashboard for **Akij Light Engineering Ltd.** redesigned in the style of **ALEL Pulse** — glassmorphism UI, teal brand theme (light / dark / sepia), and rich analytics. Fully static, runs on GitHub Pages, local-first with optional Google Sheets sync.
 
-1. **IQC — Incoming** : daily incoming-material inspection entries (mirrors *Daily IQC Report-Local Item (2026)*).
-2. **IPQC — In-Process** : two entry modes
-   - **Line-Level** — per-line, per-hour in-process checks with defect capture and auto **FPY**.
-   - **Section Roll-up** — quick monthly section aggregates.
-3. **FPY Analytics** — auto-roll-up of IPQC (and IQC pass-rate) into section/date charts.
-
-Live site: `https://md-melon-ahmed.github.io/IPQC-Dashboard/`
+**Live site:** `https://md-melon-ahmed.github.io/IPQC-Dashboard/`
 
 ---
 
 ## Features
 
-- **Local-first saving** — every entry is stored in your browser (survives refresh) with live recent-entry tables.
-- **Auto calculations**
-  - IQC: Total NG, NG%, and Pass/Fail using AQL limits (Critical 0% / Major 0.65% / Minor 1.5%).
-  - IPQC: FPY = Passed ÷ Checked × 100, plus defect totals.
-- **Optional Google Sheets sync** — via two small Apps Script backends (one per module).
-- ODM supplier autocomplete, dark responsive UI, Chart.js analytics.
+**Workspace landing** (ALEL Pulse style)
+- Two glass cards → **Entry** (IQC/IPQC) and **Dashboard**
+- Theme toggle ☀ → 🌙 → ☕ · Language toggle EN / বাং
+
+**IQC Entry — Incoming material inspection**
+- LOT/LC, received & inspection dates (Today shortcut), ODM autocomplete, material code/description
+- Lot size, sample qty (AQL), Check status
+- Critical / Major / Minor defect counts with **auto AQL decision** (ISO-2859-1 Level II)
+  - Critical 0% → any critical defect fails
+  - Major > 0.65% → fails · Minor > 1.5% → fails
+- Auto Total NG, NG %, PASSED/FAILED, recent entries table
+- Month sheet selector (Sep-26 … Jan-26)
+
+**IPQC Entry — In-process checks** (two modes)
+- **Line-Level Check:** section, assembly line, date, hour, model/item, checked / passed / repaired / failed qty, dynamic defect-type rows (`+ Add defect type`), auto **FPY**
+- **Section Roll-up:** quick monthly per-section aggregate → FPY
+- Recent entries table
+
+**Dashboard** (ApexCharts)
+- IQC tab: KPI row (total lots, passed, pass rate, qty, NG), pass-rate trend with 95% target line, pass/fail donut, daily IQC matrix (CSV export)
+- IPQC tab: KPIs (overall FPY, total defectives, best section), FPY by section bar, FPY by date line, defect Pareto (bar + cumulative %), volume donut, quality scorecard (Good/OK/Poor, CSV export)
 
 ---
 
-## Screens / Modes
+## Data storage
 
-| Tab | Purpose |
-|-----|---------|
-| IQC — Incoming | LOT/LC, dates, ODM, material, lot/sample qty, defect counts → auto AQL result |
-| IPQC — In-Process | line-level checks (section, table, hour, item, qty, 10 defect types) OR section roll-up |
-| FPY Analytics | FPY by section + by date, IQC pass rate, detailed table |
+**Local-first:** every entry is saved in your browser (localStorage) — nothing is lost on refresh.
 
----
+**Optional Google Sheets sync:** the dashboard can POST entries to Apps Script Web Apps you deploy. See `backend/`.
 
-## Google Sheets connection (optional)
+| Module | Backend file | Target |
+|--------|-------------|--------|
+| IQC | `backend/Code-IQC.gs` | Daily IQC Report-Local Item (2026) |
+| IPQC | `backend/Code-IPQC.gs` | Daily IPQC Report workbook |
 
-Because the site is static, it talks to your sheets through **Apps Script Web Apps**.
-
-### IQC backend
-1. Open **Daily IQC Report-Local Item (2026)** spreadsheet.
-2. **Extensions → Apps Script** → paste contents of [`backend/Code-IQC.gs`](backend/Code-IQC.gs) → Save.
-3. **Deploy → New deployment → Web app**: *Execute as Me*, *Access: Anyone* → copy URL (ends `/exec`).
-4. Dashboard **⚙ Settings → IQC Apps Script URL** → paste → Save.
-
-### IPQC backend
-1. Open or create your **Daily IPQC Report** spreadsheet.
-2. Paste the spreadsheet **ID** into `IPQC_SHEET_ID` at the top of [`backend/Code-IPQC.gs`](backend/Code-IPQC.gs). (Leave blank and it will auto-create `Daily IPQC Report`.)
-3. Deploy as a Web App (same steps) → paste URL into **Settings → IPQC Apps Script URL**.
-
-> Entries always save a local copy first, so nothing is lost if offline.
+**Connect (one-time):**
+1. Open the target Google Sheet → Extensions → Apps Script → paste the matching `.gs` → Save.
+2. Deploy → New deployment → Web app (*Execute as Me*, *Access Anyone*) → copy the `/exec` URL.
+3. In the dashboard, store the URL under `iqcEp` / `ipqcEp` in your browser localStorage (add a small Settings panel or paste via DevTools):
+   ```js
+   localStorage.setItem('iqcEp',  'https://script.google.com/macros/s/.../exec');
+   localStorage.setItem('ipqcEp', 'https://script.google.com/macros/s/.../exec');
+   ```
 
 ---
 
@@ -59,8 +61,18 @@ python -m http.server 8000
 # open http://localhost:8000
 ```
 
-Or just open `index.html` in a browser.
+---
+
+## File map
+
+```
+index.html          SPA (landing / chooser / IQC app / IPQC app / dashboard)
+css/style.css       ALEL-Pulse-style theme (light/dark/sepia, glassmorphism)
+js/app.js           entry logic, AQL/FPY calc, storage, dashboard & charts
+backend/Code-IQC.gs     Google Apps Script backend — IQC
+backend/Code-IPQC.gs    Google Apps Script backend — IPQC
+```
 
 ---
 
-*Akij Light Engineering Ltd. · IQC Form ALEL-QC-IQC-F001/25 · IPQC in-process checks*
+*Akij Light Engineering Ltd. · IQC Form ALEL-QC-IQC-F001/25 · v2026.09.02*
