@@ -4,6 +4,18 @@ A quality-control dashboard for **Akij Light Engineering Ltd.** redesigned in th
 
 **Live site:** `https://md-melon-ahmed.github.io/IPQC-Dashboard/`
 
+## 📱 Install as an App (PWA)
+
+QC Pulse is a **Progressive Web App** — you can install it like a native app on phone or desktop:
+
+- **Android (Chrome):** tap the **⋮** menu → **Install app** / **Add to Home screen**, or tap the **⬇ Install App** button on the landing page.
+- **iPhone (Safari):** tap **Share** ⬆ → **Add to Home Screen**.
+- **Desktop (Chrome/Edge):** click the install icon in the address bar.
+
+Once installed it runs in its own window (no browser chrome), works **offline**, and supports quick shortcuts for **IQC Entry**, **IPQC Entry**, and **Dashboard**.
+
+**PWA files:** `manifest.json`, `sw.js` (service worker), `icons/` (app icons).
+
 ---
 
 ## Features

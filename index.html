@@ -2,8 +2,21 @@
 <html lang="en" data-theme="">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>QC Pulse — IQC & IPQC Dashboard</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0D5C58">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="QC Pulse">
+<meta name="application-name" content="QC Pulse">
+<meta name="description" content="Incoming (IQC) and In-Process (IPQC) quality control data entry & analytics — Akij Light Engineering Ltd.">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -48,10 +61,11 @@
 
     <div class="landing-foot">
       <span>IQC · IPQC</span>
+      <button class="mini-icon" id="btn-install" onclick="installApp()" title="Install App" style="width:auto;padding:0 14px;font-size:12px;font-weight:800">⬇ Install App</button>
       <button class="mini-icon" id="btn-theme-landing" onclick="cycleTheme()" title="Theme"><span class="theme-icon">☀</span></button>
       <button class="mini-icon" onclick="cycleLang()" title="Language"><span class="lang-icon">বাং</span></button>
     </div>
-    <div class="version">v2026.09.02</div>
+    <div class="version">v2026.09.03</div>
   </div>
 </div>
 
@@ -304,5 +318,44 @@
 <datalist id="odm-list"></datalist>
 
 <script src="js/app.js"></script>
+
+<!-- PWA: service worker + install prompt + deep-link routing -->
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
+
+// Install prompt (Android/Chrome)
+let deferredPrompt = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+});
+window.addEventListener("appinstalled", () => {
+  const btn = document.getElementById("btn-install");
+  if (btn) btn.textContent = "✓ Installed";
+  deferredPrompt = null;
+});
+function installApp() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
+  } else if (window.matchMedia("(display-mode: standalone)").matches) {
+    alert("QC Pulse is already installed and running as an app.");
+  } else {
+    alert("To install QC Pulse:\n\n• Android (Chrome): tap ⋮ menu → 'Install app' / 'Add to Home screen'\n• iPhone (Safari): tap Share ⬆ → 'Add to Home Screen'\n• Desktop (Chrome/Edge): click the install icon in the address bar");
+  }
+}
+
+// Deep links: ?view=iqc|ipqc|dashboard
+window.addEventListener("DOMContentLoaded", () => {
+  const v = new URLSearchParams(location.search).get("view");
+  if (v === "iqc") showEntry("iqc");
+  else if (v === "ipqc") showEntry("ipqc");
+  else if (v === "dashboard") openDashboard();
+});
+</script>
 </body>
 </html>
