@@ -33,7 +33,7 @@ function jsonp(url){return new Promise((resolve,reject)=>{
   function cleanup(){try{delete window[cb]}catch(e){} s.remove(); clearTimeout(t);}
   window[cb]=d=>{cleanup();resolve(d)};
   s.onerror=()=>{cleanup();reject(new Error("network"))};
-  s.src=url+(url.indexOf("?")<0?"?":"&")+"callback="+cb;
+  s.src=url+(url.indexOf("?")<0?"?":"&")+"callback="+cb+"&_="+Date.now();
   document.body.appendChild(s);
 });}
 async function loadMaster(){
@@ -42,8 +42,9 @@ async function loadMaster(){
     const d=await jsonp(getDataEp()+"?action=master");
     if(d && d.status==="ok" && (d.items||[]).length){
       MASTER={items:d.items||[],materials:d.materials||[],suppliers:d.suppliers||[],
-        defectTypes:d.defectTypes||[],aql:d.aql||{codeToSize:{},ranges:[],ac:{}}};
+        defectTypes:d.defectTypes||[],aql:d.aql||{codeToSize:{},ranges:[],ac:{}},auth:d.auth||null};
       masterReady=true;
+      if(d.auth && authOk(d.auth)) cacheAuth(d.auth);
       try{ localStorage.setItem("masterCache", JSON.stringify(MASTER)); }catch(e){}
       populateAll(); setMasterStatus("ok");
       return;
@@ -67,17 +68,29 @@ function setMasterStatus(state){
 }
 
 /* ============ Authorization (restricted data entry) ============ */
-const AUTH_KEY="qcAuthUser";
+const AUTH_KEY="qcAuthUser", AUTH_CACHE="authCache";
 let AUTH={email:"",perms:{iqc:false,entry:false,dashboard:false,fpy:false}};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function can(p){return !!AUTH.perms[p];}
-async function fetchAuthLists(){
-  try{
-    const d=await jsonp(getDataEp()+"?action=auth");
-    if(d && d.status==="ok" && d.auth) return d.auth;
-  }catch(e){}
+function cacheAuth(a){try{localStorage.setItem(AUTH_CACHE,JSON.stringify(a));}catch(e){}}
+function cachedAuth(){
+  try{ const a=JSON.parse(localStorage.getItem(AUTH_CACHE)||"null"); if(a) return a; }catch(e){}
   try{ const c=JSON.parse(localStorage.getItem("masterCache")||"null"); if(c&&c.auth) return c.auth; }catch(e){}
-  if(MASTER && MASTER.auth) return MASTER.auth;
   return null;
+}
+function authOk(a){return a && (a.iqc||a.entry||a.dashboard||a.fpy);}
+async function fetchAuthLists(){
+  for(let i=0;i<3;i++){
+    try{
+      const d=await jsonp(getDataEp()+"?action=auth");
+      if(d && d.status==="ok" && authOk(d.auth)){ cacheAuth(d.auth); return d.auth; }
+    }catch(e){}
+    if(i<2) await sleep(1200);
+  }
+  if(MASTER && authOk(MASTER.auth)) return MASTER.auth;
+  for(let i=0;i<10 && !masterReady;i++) await sleep(800);
+  if(MASTER && authOk(MASTER.auth)) return MASTER.auth;
+  return cachedAuth();
 }
 function permsFor(email, lists){
   const e=String(email||"").trim().toLowerCase();
@@ -87,13 +100,14 @@ function permsFor(email, lists){
 function anyPerm(p){return p.iqc||p.entry||p.dashboard||p.fpy;}
 async function submitAuth(){
   const email=$("auth-email").value.trim().toLowerCase();
-  const msg=$("auth-msg"), btn=$("auth-btn");
+  const msg=$("auth-msg"), btn=$("auth-btn"), retry=$("auth-retry");
+  if(retry) retry.classList.add("hidden");
   if(!email || email.indexOf("@")<0){ msg.className="auth-msg"; msg.textContent="Enter a valid email address."; return; }
   if(btn) btn.disabled=true;
   msg.className="auth-msg"; msg.textContent="Checking…";
   const lists=await fetchAuthLists();
   if(btn) btn.disabled=false;
-  if(!lists){ msg.textContent="Cannot verify right now — check your internet and retry."; return; }
+  if(!lists){ msg.textContent="Cannot verify right now. Make sure you are online, then retry."; if(retry) retry.classList.remove("hidden"); return; }
   const perms=permsFor(email, lists);
   if(!anyPerm(perms)){ msg.textContent="This email is not authorized. Contact the QC admin."; return; }
   AUTH={email,perms};
@@ -102,7 +116,12 @@ async function submitAuth(){
   hideAuthGate(); applyPermissions(); refreshUserChip();
   toast("Signed in as "+email,"success");
 }
-function showAuthGate(){ $("auth-gate").classList.remove("hidden"); const e=$("auth-email"); if(e) e.value=AUTH.email||""; }
+function showAuthGate(){
+  $("auth-gate").classList.remove("hidden");
+  const e=$("auth-email"); if(e) e.value=AUTH.email||"";
+  const m=$("auth-msg"); if(m){ m.className="auth-msg"; m.textContent=""; }
+  const r=$("auth-retry"); if(r) r.classList.add("hidden");
+}
 function hideAuthGate(){ $("auth-gate").classList.add("hidden"); }
 function signOut(){
   try{ localStorage.removeItem(AUTH_KEY); }catch(e){}
