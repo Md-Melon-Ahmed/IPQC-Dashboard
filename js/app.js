@@ -1,9 +1,11 @@
 /* QC Pulse — IQC + IPQC data entry & analytics (local-first, optional Apps Script sync) */
 const IQC_KEY="iqcEntriesPulse", IPQC_KEY="ipqcEntriesPulse", SEC_KEY="ipqcSecPulse";
 const LS_IQC_EP="iqcEp", LS_IPQC_EP="ipqcEp";
-// IQC Master Data Apps Script Web App (bound to sheet 1hKodbuw1pAEzk91qiEw0WeqxY2byEuTZfKRgpqUFBNo)
-const IQC_DEFAULT_EP="https://script.google.com/macros/s/AKfycbxyHoHZ6DG6rZLIgAgev5Nl0XbLO2Sx-IlZ68B-I7uhqS75cPBRpr0GBB2W7Opt1smz/exec";
-const getIqcEp=()=>localStorage.getItem(LS_IQC_EP)||IQC_DEFAULT_EP;
+// QC Pulse backend (bound to "IQC-IPQC dashboard" spreadsheet: master data + IQC_data/IPQC_data)
+const DATA_EP="https://script.google.com/macros/s/AKfycby6vu7ktKIG5EqjXVNGYaKpFXWI8Q9PRnzsxFCRZfkg36alJ6x0_AdLaNvRVSK8QBAeWA/exec";
+const getIqcEp=()=>localStorage.getItem(LS_IQC_EP)||DATA_EP;
+const getIpqcEp=()=>localStorage.getItem(LS_IPQC_EP)||DATA_EP;
+const getDataEp=()=>localStorage.getItem("dataEp")||DATA_EP;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}};
@@ -17,15 +19,128 @@ function setToday(mod,which){if(mod==='iqc'){if(which==='rec')$("iqc-date-rec").
 let iqcEntries=load(IQC_KEY,[]), ipqcEntries=load(IPQC_KEY,[]), secEntries=load(SEC_KEY,[]);
 let themeIdx=0, charts={}, activeDefectIdx=0;
 
+// Master data (from sheet)
+let MASTER={items:[],materials:[],suppliers:[],defectTypes:[],aql:{codeToSize:{},ranges:[],ac:{}}};
+let masterReady=false;
 const DEFECT_TYPES=["Connection Problem","Circuit Damage","Scratch","Spot","Improper Print","Extra Metal","Improper Fitting","Color Defect","Metal Parts Missing","Nut loose","Dirt/Uncleanness"];
 const ODM_LIST=["Bhuiyan Poly Packs","Holopuls Techno","Joarder Printers","Metal Zone","Moon Corporation","Nezam Trading","Print Source","Priyanti Engineering","Royal Print Pack","SA EPS Insulation","Saadi Engineering","Taiji International","Unique Trade Corporation","United Packaging","Zara Printing & Packaging"];
+
+/* ============ Master data ============ */
+function jsonp(url){return new Promise((resolve,reject)=>{
+  const cb="cb"+Math.random().toString(36).slice(2);
+  const s=document.createElement("script");
+  const t=setTimeout(()=>{cleanup();reject(new Error("timeout"))},20000);
+  function cleanup(){try{delete window[cb]}catch(e){} s.remove(); clearTimeout(t);}
+  window[cb]=d=>{cleanup();resolve(d)};
+  s.onerror=()=>{cleanup();reject(new Error("network"))};
+  s.src=url+(url.indexOf("?")<0?"?":"&")+"callback="+cb;
+  document.body.appendChild(s);
+});}
+async function loadMaster(){
+  try{
+    const d=await jsonp(getDataEp()+"?action=master");
+    if(d && d.status==="ok"){
+      MASTER={items:d.items||[],materials:d.materials||[],suppliers:d.suppliers||[],
+        defectTypes:d.defectTypes||[],aql:d.aql||{codeToSize:{},ranges:[],ac:{}}};
+      masterReady=true; populateAll();
+    }
+  }catch(e){ console.warn("master load failed",e); }
+}
+function populateAll(){ populateIQC(); populateIPQC(); }
+
+function populateIQC(){
+  const odm=$("iqc-odm"), code=$("iqc-code");
+  if(!odm||!code) return;
+  const sup=MASTER.suppliers.length?MASTER.suppliers.map(s=>s.name):ODM_LIST;
+  odm.innerHTML='<option value="">— select ODM —</option>'+sup.map(s=>`<option>${esc(s)}</option>`).join("");
+  const mats=MASTER.materials;
+  code.innerHTML='<option value="">— select material —</option>'+
+    mats.map(m=>`<option value="${esc(m.code)}">${esc(m.code)} — ${esc(m.desc)}</option>`).join("");
+}
+function iqcMaterialChanged(){
+  const c=$("iqc-code").value;
+  const m=MASTER.materials.find(x=>String(x.code)===String(c));
+  if(m){ $("iqc-desc").value=m.desc||""; $("iqc-pg").value=m.pg||""; $("iqc-cat").value=m.cat||""; $("iqc-level").value=m.level||"II"; }
+  else { $("iqc-desc").value=""; $("iqc-pg").value=""; $("iqc-cat").value=""; $("iqc-level").value=""; }
+  iqcAutoSample();
+}
+function iqcAutoSample(){
+  const lot=parseInt($("iqc-lotsize").value)||0;
+  const level=$("iqc-level").value||"II";
+  if(!lot||!masterReady){return;}
+  const r=(MASTER.aql.ranges||[]).find(x=>lot>=x.min && lot<=x.max);
+  if(r){ const letter=r[level]||r["II"]; const size=(MASTER.aql.codeToSize||{})[letter]; if(size){ $("iqc-sample").value=size; iqcCompute(); } }
+}
+
+function populateIPQC(){
+  const sec=$("ipqc-section"); if(!sec) return;
+  const secs=[...new Set(MASTER.items.map(i=>i.section).filter(Boolean))].sort();
+  sec.innerHTML='<option value="">— select section —</option>'+secs.map(s=>`<option>${esc(s)}</option>`).join("");
+}
+function ipqcSectionChanged(){
+  const s=$("ipqc-section").value;
+  const lines=[...new Set(MASTER.items.filter(i=>i.section===s).map(i=>i.line).filter(Boolean))].sort();
+  $("ipqc-line").innerHTML='<option value="">— select line —</option>'+lines.map(l=>`<option>${esc(l)}</option>`).join("");
+  $("ipqc-code").innerHTML='<option value="">— select item —</option>';
+  $("ipqc-hour").innerHTML='<option value="">— select hour —</option>';
+  $("ipqc-item").value="";
+  renderDefectRows();
+}
+function ipqcLineChanged(){
+  const s=$("ipqc-section").value, l=$("ipqc-line").value;
+  const items=MASTER.items.filter(i=>i.section===s && i.line===l);
+  $("ipqc-code").innerHTML='<option value="">— select item —</option>'+
+    items.map(i=>`<option value="${esc(i.code)}">${esc(i.code)} — ${esc(i.name)}</option>`).join("");
+  // hours from master (unique)
+  const hrs=[...new Set(MASTER.items.map(i=>i.hour).filter(x=>x!==""&&x!=null))].sort((a,b)=>a-b);
+  const times={}; MASTER.items.forEach(i=>{ if(i.hour!==undefined) times[i.hour]=i.time; });
+  $("ipqc-hour").innerHTML='<option value="">— select hour —</option>'+
+    hrs.map(h=>`<option value="${esc(h)}">${esc(h)}${times[h]?" — "+esc(times[h]):""}</option>`).join("");
+}
+function ipqcItemChanged(){
+  const c=$("ipqc-code").value;
+  const it=MASTER.items.find(x=>String(x.code)===String(c));
+  $("ipqc-item").value=it?it.name:"";
+  renderDefectRows();
+}
+function currentDefectTypes(){
+  // find item's defect group via item.defectCode -> group
+  const c=$("ipqc-code")?$("ipqc-code").value:"";
+  const it=MASTER.items.find(x=>String(x.code)===String(c));
+  let group=null;
+  if(it && it.defectCode){
+    const dt=MASTER.defectTypes.find(d=>String(d.code)===String(it.defectCode));
+    if(dt) group=dt.group;
+  }
+  let list=MASTER.defectTypes.filter(d=>d.active!==false);
+  if(group){ const g=list.filter(d=>d.group===group); if(g.length) list=g; }
+  return list.length? list.map(d=>d.problem) : DEFECT_TYPES;
+}
+function renderDefectRows(){
+  const rows=$("ipqc-defect-rows"); if(!rows) return;
+  rows.innerHTML=""; addDefectRow(); ipqcComputeDefects();
+}
 
 /* ============ View routing ============ */
 function hideAll(){["landing-view","chooser-view","iqc-app","ipqc-app","dashboard-app"].forEach(id=>$(id).classList.remove("active"));}
 function showLanding(){hideAll();$("landing-view").classList.add("active");}
 function openChooser(){hideAll();$("chooser-view").classList.add("active");}
 function showEntry(which){hideAll();$(which+"-app").classList.add("active");renderHistory(which);}
-function openDashboard(){hideAll();$("dashboard-app").classList.add("active");renderDashboard();}
+function openDashboard(){hideAll();$("dashboard-app").classList.add("active");renderDashboard();loadRecords();}
+async function loadRecords(){
+  try{
+    const d=await jsonp(getDataEp()+"?action=iqc");
+    if(d&&d.rows){ iqcEntries=d.rows.map(r=>({lot:r[2],dateRec:r[3],dateIns:r[4],odm:r[5],code:r[6],desc:r[7],
+      lotSize:parseInt(r[11])||0,sample:parseInt(r[12])||0,totalNG:parseInt(r[17])||0,result:r[18],ngPct:(parseFloat(r[19])||0)/100})); }
+  }catch(e){}
+  try{
+    const d2=await jsonp(getDataEp()+"?action=ipqc");
+    if(d2&&d2.rows){ ipqcEntries=d2.rows.map(r=>{ let defs=[]; try{defs=JSON.parse(r[16]||"[]")}catch(e){}
+      return {date:r[2],section:r[3],line:r[4],hour:r[5],code:r[6],item:r[7],checked:parseFloat(r[10])||0,
+        passed:parseFloat(r[11])||0,failed:parseFloat(r[13])||0,defectTotal:parseFloat(r[14])||0,fpy:parseFloat(r[15])||0,defects:defs}; }); }
+  }catch(e){}
+  if($("dashboard-app").classList.contains("active")){ destroyCharts(); const tab=document.querySelector(".dash-tabbar .tab.active"); if(tab&&tab.dataset.tab==="ipqc") renderIPQC(); else renderIQC(); }
+}
 
 /* ============ Theme / language ============ */
 const THEMES=["","dark","sepia"], THEME_ICONS={light:"☀",dark:"🌙",sepia:"☕"};
@@ -61,19 +176,23 @@ function iqcCompute(){const sample=parseFloat($("iqc-sample").value)||0;
 function iqcReset(){$("iqc-form").reset();$("iqc-date-rec").value=todayStr();$("iqc-date-ins").value=todayStr();
  $("iqc-critical").value=0;$("iqc-major").value=0;$("iqc-minor").value=0;iqcCompute();}
 async function iqcSubmit(e){e.preventDefault();
- const calc=iqcCompute();const rec={module:"iqc",month:$("iqc-month").value,lot:$("iqc-lot").value.trim(),
-  dateRec:$("iqc-date-rec").value,dateIns:$("iqc-date-ins").value,odm:$("iqc-odm").value.trim(),code:$("iqc-code").value.trim(),
-  desc:$("iqc-desc").value.trim(),lotSize:parseInt($("iqc-lotsize").value)||0,sample:parseInt($("iqc-sample").value)||0,
-  status:$("iqc-status").value,critical:parseInt($("iqc-critical").value)||0,major:parseInt($("iqc-major").value)||0,
-  minor:parseInt($("iqc-minor").value)||0,totalNG:calc.total,ngPct:calc.ng,result:calc.pass?"PASSED":"FAILED",
-  failDesc:$("iqc-faildesc").value.trim(),picture:$("iqc-picture").value.trim(),remarks:$("iqc-remarks").value.trim(),
-  ts:new Date().toISOString()};
- if(!rec.lot||!rec.dateRec||!rec.odm||!rec.code||!rec.desc||rec.lotSize<=0||rec.sample<=0){toast("Please fill all IQC required fields.","error");return;}
+ const calc=iqcCompute();
+ const lot=$("iqc-lot").value.trim(), dateRec=$("iqc-date-rec").value, dateIns=$("iqc-date-ins").value;
+ const odm=$("iqc-odm").value, code=$("iqc-code").value, desc=$("iqc-desc").value.trim();
+ const pg=$("iqc-pg").value, cat=$("iqc-cat").value, level=$("iqc-level").value;
+ const lotSize=parseInt($("iqc-lotsize").value)||0, sample=parseInt($("iqc-sample").value)||0;
+ const status=$("iqc-status").value, cr=parseInt($("iqc-critical").value)||0, ma=parseInt($("iqc-major").value)||0, mi=parseInt($("iqc-minor").value)||0;
+ const failDesc=$("iqc-faildesc").value.trim(), picture=$("iqc-picture").value.trim(), remarks=$("iqc-remarks").value.trim();
+ if(!lot||!dateRec||!odm||!code||lotSize<=0||sample<=0){toast("Please fill all IQC required fields.","error");return;}
+ const rec={module:"iqc",lot,dateRec,dateIns,odm,code,desc,pg,cat,level,lotSize,sample,status,critical:cr,major:ma,minor:mi,
+   totalNG:calc.total,ngPct:calc.ng,result:calc.pass?"PASSED":"FAILED",failDesc,picture,remarks,ts:new Date().toISOString()};
  iqcEntries.push(rec);save(IQC_KEY,iqcEntries);renderHistory("iqc");
- const msg=$("iqc-save-msg"),ep=getIqcEp();
- if(ep){try{await postEp(ep,rec);msg.textContent="Saved & synced to Google Sheet ✓";msg.className="save-msg ok";}
-  catch(err){msg.textContent="Saved locally (sync pending)";msg.className="save-msg ok";}}
- else{msg.textContent="Saved locally ✓";msg.className="save-msg ok";}
+ const now=new Date().toLocaleString("en-GB");
+ const row=[now,"",lot,dateRec,dateIns,odm,code,desc,pg,cat,level,lotSize,sample,status,cr,ma,mi,calc.total,
+   calc.pass?"PASSED":"FAILED",(calc.ng*100).toFixed(2),failDesc,picture,remarks];
+ const msg=$("iqc-save-msg");
+ try{ await postEp(getIqcEp(),{action:"iqc",data:row}); msg.textContent="Saved & synced to sheet ✓";msg.className="save-msg ok"; }
+ catch(err){ msg.textContent="Saved locally (sync pending)";msg.className="save-msg ok"; }
  toast("IQC entry saved","success");iqcReset();}
 
 /* ============ IPQC logic ============ */
@@ -82,9 +201,10 @@ function ipqcMode(mode){const line=mode==="line";$("ipqc-form").classList.toggle
  document.querySelectorAll("#ipqc-mode-toggle .pill").forEach(b=>b.classList.toggle("active",b.dataset.mode===mode));}
 function addDefectRow(type){const rows=$("ipqc-defect-rows");const used=[];
  document.querySelectorAll(".defect-row select").forEach(s=>used.push(s.value));
- const avail=DEFECT_TYPES.filter(d=>!used.includes(d));const sel=type||avail[0]||DEFECT_TYPES[0];
+ const types=currentDefectTypes();
+ const avail=types.filter(d=>!used.includes(d));const sel=type||avail[0]||types[0];
  const row=document.createElement("div");row.className="defect-row";
- row.innerHTML=`<select><option value="">— select —</option>${DEFECT_TYPES.map(d=>`<option ${d===sel?"selected":""}>${d}</option>`).join("")}</select>
+ row.innerHTML=`<select><option value="">— select —</option>${types.map(d=>`<option ${d===sel?"selected":""}>${esc(d)}</option>`).join("")}</select>
    <input type="number" min="0" value="0" placeholder="qty"><button type="button" class="rm" title="Remove">✕</button>`;
  row.querySelector("select").addEventListener("change",ipqcComputeDefects);
  row.querySelector("input").addEventListener("input",ipqcComputeDefects);
@@ -104,14 +224,20 @@ async function ipqcSubmit(e){e.preventDefault();
   if(ty&&q>0){defects.push({type:ty,qty:q});defectTotal+=q;}});
  const checked=parseFloat($("ipqc-checked").value)||0,passed=parseFloat($("ipqc-passed").value)||0,failed=parseFloat($("ipqc-failed").value)||0,repaired=parseFloat($("ipqc-repaired").value)||0;
  const fpy=checked>0?passed/checked*100:0;
- const rec={module:"ipqc",month:monthForDate($("ipqc-date").value),date:$("ipqc-date").value,section:$("ipqc-section").value,
-  line:$("ipqc-line").value,hour:$("ipqc-hour").value.trim(),code:$("ipqc-code").value.trim(),item:$("ipqc-item").value.trim(),
-  checked,passed,repaired,failed,defects,defectTotal,fpy:Math.round(fpy*100)/100,remarks:$("ipqc-remarks").value.trim(),ts:new Date().toISOString()};
- if(!rec.date||!rec.code||!rec.item||checked<=0){toast("Please fill IPQC required fields.","error");return;}
+ const date=$("ipqc-date").value, section=$("ipqc-section").value, line=$("ipqc-line").value;
+ const hour=$("ipqc-hour").value, code=$("ipqc-code").value, item=$("ipqc-item").value;
+ const it=MASTER.items.find(x=>String(x.code)===String(code));
+ const pg=it?it.pg:"", target=it?it.target:"";
+ if(!date||!code||!item||checked<=0){toast("Please fill IPQC required fields.","error");return;}
+ const rec={module:"ipqc",date,section,line,hour,code,item,pg,checked,passed,repaired,failed,defects,defectTotal,
+   fpy:Math.round(fpy*100)/100,remarks:$("ipqc-remarks").value.trim(),ts:new Date().toISOString()};
  ipqcEntries.push(rec);save(IPQC_KEY,ipqcEntries);renderHistory("ipqc");
- const msg=$("ipqc-save-msg"),ep=localStorage.getItem(LS_IPQC_EP);
- if(ep){try{await postEp(ep,rec);msg.textContent="Saved & synced ✓";msg.className="save-msg ok";}catch(err){msg.textContent="Saved locally ✓";msg.className="save-msg ok";}}
- else{msg.textContent="Saved locally ✓";msg.className="save-msg ok";}
+ const now=new Date().toLocaleString("en-GB");
+ const row=[now,"",date,section,line,hour,code,item,pg,target,checked,passed,repaired,failed,defectTotal,
+   Math.round(fpy*100)/100,JSON.stringify(defects),$("ipqc-remarks").value.trim()];
+ const msg=$("ipqc-save-msg");
+ try{ await postEp(getIpqcEp(),{action:"ipqc",data:row}); msg.textContent="Saved & synced ✓";msg.className="save-msg ok"; }
+ catch(err){ msg.textContent="Saved locally ✓";msg.className="save-msg ok"; }
  toast("IPQC entry saved","success");ipqcReset();}
 function ipqcSecCompute(){const c=parseFloat($("ipqc-sec-checked").value)||0,p=parseFloat($("ipqc-sec-passed").value)||0;
  const f=c>0?p/c*100:0;const el=$("ipqc-sec-fpy");el.textContent=c>0?f.toFixed(2)+"%":"—";el.className=f>=95?"pass":"fail";}
@@ -291,10 +417,14 @@ function exportIPQCCSV(){downloadCSV("IPQC_Quality.csv",[["Section","Line","Item
 /* ============ Init ============ */
 function init(){
  $("iqc-date-rec").value=todayStr();$("iqc-date-ins").value=todayStr();$("ipqc-date").value=todayStr();
- ODM_LIST.forEach(o=>{const op=document.createElement("option");op.value=o;$("odm-list").appendChild(op);});
  ["iqc-sample","iqc-critical","iqc-major","iqc-minor"].forEach(id=>$(id).addEventListener("input",iqcCompute));
+ $("iqc-code").addEventListener("change",iqcMaterialChanged);
+ $("iqc-lotsize").addEventListener("input",iqcAutoSample);
  $("iqc-form").addEventListener("submit",iqcSubmit);
  document.querySelectorAll("#ipqc-mode-toggle .pill").forEach(b=>b.addEventListener("click",()=>ipqcMode(b.dataset.mode)));
+ $("ipqc-section").addEventListener("change",ipqcSectionChanged);
+ $("ipqc-line").addEventListener("change",ipqcLineChanged);
+ $("ipqc-code").addEventListener("change",ipqcItemChanged);
  ["ipqc-checked","ipqc-passed","ipqc-failed","ipqc-repaired"].forEach(id=>$(id).addEventListener("input",ipqcComputeDefects));
  $("ipqc-form").addEventListener("submit",ipqcSubmit);
  $("ipqc-section-form").addEventListener("submit",ipqcSecSubmit);
@@ -302,5 +432,6 @@ function init(){
  document.querySelectorAll(".dash-tabbar .tab").forEach(b=>b.addEventListener("click",()=>switchDashTab(b.dataset.tab)));
  iqcReset();ipqcReset();ipqcSecCompute();addDefectRow();
  applyI18n();
+ loadMaster();
 }
 document.addEventListener("DOMContentLoaded",()=>{init();showLanding();});

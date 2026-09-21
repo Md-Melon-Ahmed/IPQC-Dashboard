@@ -123,10 +123,15 @@
         <button type="button" class="tiny-pill" data-day="ins" onclick="setToday('iqc',this.dataset.day)">Today</button></div></div>
     </div>
     <div class="grid-2">
-      <div class="field"><label>ODM Name *</label><input type="text" id="iqc-odm" list="odm-list" placeholder="Supplier" required></div>
-      <div class="field"><label>Material Code *</label><input type="text" id="iqc-code" placeholder="e.g. 11112710" required></div>
+      <div class="field"><label>ODM Name *</label><select id="iqc-odm" required></select></div>
+      <div class="field"><label>Material Code *</label><select id="iqc-code" required></select></div>
     </div>
-    <div class="field"><label>Material Description *</label><input type="text" id="iqc-desc" placeholder="Item description" required></div>
+    <div class="field"><label>Material Description</label><input type="text" id="iqc-desc" readonly></div>
+    <div class="grid-3">
+      <div class="field"><label>PG</label><input type="text" id="iqc-pg" readonly></div>
+      <div class="field"><label>Category</label><input type="text" id="iqc-cat" readonly></div>
+      <div class="field"><label>Inspection Level</label><input type="text" id="iqc-level" readonly></div>
+    </div>
 
     <div class="form-section-label">Sampling &amp; Inspection</div>
     <div class="grid-2">
@@ -188,23 +193,17 @@
   <!-- LINE MODE -->
   <form id="ipqc-form" class="form-card">
     <div class="grid-2">
-      <div class="field"><label>Section *</label>
-        <select id="ipqc-section">
-          <option>Gang Switch Socket</option><option>Lights</option><option>PSS &amp; Others</option><option>MCB</option>
-          <option>HAP</option><option>SDB</option><option>Exhaust Fan</option><option>PVC Tape</option>
-        </select></div>
-      <div class="field"><label>Assembly Line *</label>
-        <select id="ipqc-line"><option>Table-01</option><option>Table-02</option><option>Table-03</option><option>Table-04</option>
-          <option>Table-05</option><option>Table-06</option><option>Table-07</option><option>Table-08</option></select></div>
+      <div class="field"><label>Section *</label><select id="ipqc-section"></select></div>
+      <div class="field"><label>Assembly Line *</label><select id="ipqc-line"></select></div>
     </div>
     <div class="grid-3">
       <div class="field"><label>Date *</label>
         <div class="date-row"><input type="date" id="ipqc-date" required>
         <button type="button" class="tiny-pill" onclick="setToday('ipqc')">Today</button></div></div>
-      <div class="field"><label>Hour / Time</label><input type="text" id="ipqc-hour" placeholder="1st hr" value="1st hr"></div>
-      <div class="field"><label>Model / Item Code *</label><input type="text" id="ipqc-code" placeholder="e.g. 14414493" required></div>
+      <div class="field"><label>Hour / Time *</label><select id="ipqc-hour"></select></div>
+      <div class="field"><label>Item *</label><select id="ipqc-code"></select></div>
     </div>
-    <div class="field"><label>Item Name *</label><input type="text" id="ipqc-item" placeholder="Item description" required></div>
+    <div class="field"><label>Item Name</label><input type="text" id="ipqc-item" readonly></div>
     <div class="grid-4">
       <div class="field"><label>Checked Qty *</label><input type="number" id="ipqc-checked" min="0" required></div>
       <div class="field"><label>Passed Qty *</label><input type="number" id="ipqc-passed" min="0" required></div>
