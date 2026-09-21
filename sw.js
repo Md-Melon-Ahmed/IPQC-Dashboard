@@ -1,5 +1,5 @@
 /* QC Pulse — Service Worker (offline-first PWA) */
-const CACHE = "qc-pulse-v2";
+const CACHE = "qc-pulse-v3";
 const CORE = [
   "./",
   "./index.html",
@@ -49,17 +49,15 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // App shell: cache-first, then network, fallback to index.html
+  // App shell + CDN: network-first (so updates apply), fallback to cache offline
   e.respondWith(
-    caches.match(req).then((cached) => {
+    fetch(req).then((res) => {
+      const copy = res.clone();
+      caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+      return res;
+    }).catch(() => caches.match(req).then((cached) => {
       if (cached) return cached;
-      return fetch(req).then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
-        return res;
-      }).catch(() => {
-        if (req.mode === "navigate") return caches.match("./index.html");
-      });
-    })
+      if (req.mode === "navigate") return caches.match("./index.html");
+    }))
   );
 });
