@@ -51,14 +51,16 @@ function populateAll(){ populateIQC(); populateIPQC(); }
 function populateIQC(){
   const odm=$("iqc-odm"), code=$("iqc-code");
   if(!odm||!code) return;
-  const sup=MASTER.suppliers.length?MASTER.suppliers.map(s=>s.name):ODM_LIST;
-  odm.innerHTML='<option value="">— select ODM —</option>'+sup.map(s=>`<option>${esc(s)}</option>`).join("");
-  const mats=MASTER.materials;
-  code.innerHTML='<option value="">— select material —</option>'+
-    mats.map(m=>`<option value="${esc(m.code)}">${esc(m.code)} — ${esc(m.desc)}</option>`).join("");
+  const sup=MASTER.suppliers.length?MASTER.suppliers.map(s=>({code:s.code,name:s.name})):ODM_LIST.map(n=>({code:"",name:n}));
+  odm.innerHTML='<option value="">— select ODM —</option>'+
+    sup.map(s=>`<option value="${esc(s.code)}">${esc(s.code? s.code+" — ":"")}${esc(s.name)}</option>`).join("");
+  // material datalist (manual entry allowed)
+  const dl=$("material-list");
+  if(dl){ dl.innerHTML=MASTER.materials.map(m=>`<option value="${esc(m.code)}">${esc(m.desc)}</option>`).join(""); }
+  if(code && code.tagName==="SELECT"){ /* legacy */ }
 }
 function iqcMaterialChanged(){
-  const c=$("iqc-code").value;
+  const c=$("iqc-code").value.trim();
   const m=MASTER.materials.find(x=>String(x.code)===String(c));
   if(m){ $("iqc-desc").value=m.desc||""; $("iqc-pg").value=m.pg||""; $("iqc-cat").value=m.cat||""; $("iqc-level").value=m.level||"II"; }
   else { $("iqc-desc").value=""; $("iqc-pg").value=""; $("iqc-cat").value=""; $("iqc-level").value=""; }
@@ -178,17 +180,21 @@ function iqcReset(){$("iqc-form").reset();$("iqc-date-rec").value=todayStr();$("
 async function iqcSubmit(e){e.preventDefault();
  const calc=iqcCompute();
  const lot=$("iqc-lot").value.trim(), dateRec=$("iqc-date-rec").value, dateIns=$("iqc-date-ins").value;
- const odm=$("iqc-odm").value, code=$("iqc-code").value, desc=$("iqc-desc").value.trim();
+ const odmCode=$("iqc-odm").value;
+ const sup=MASTER.suppliers.find(s=>String(s.code)===String(odmCode));
+ const selOpt=$("iqc-odm").selectedOptions && $("iqc-odm").selectedOptions[0];
+ let odmName=sup?sup.name:(selOpt?selOpt.textContent.replace(/^\S+\s*—\s*/,""):"");
+ const code=$("iqc-code").value.trim(), desc=$("iqc-desc").value.trim();
  const pg=$("iqc-pg").value, cat=$("iqc-cat").value, level=$("iqc-level").value;
  const lotSize=parseInt($("iqc-lotsize").value)||0, sample=parseInt($("iqc-sample").value)||0;
  const status=$("iqc-status").value, cr=parseInt($("iqc-critical").value)||0, ma=parseInt($("iqc-major").value)||0, mi=parseInt($("iqc-minor").value)||0;
  const failDesc=$("iqc-faildesc").value.trim(), picture=$("iqc-picture").value.trim(), remarks=$("iqc-remarks").value.trim();
- if(!lot||!dateRec||!odm||!code||lotSize<=0||sample<=0){toast("Please fill all IQC required fields.","error");return;}
- const rec={module:"iqc",lot,dateRec,dateIns,odm,code,desc,pg,cat,level,lotSize,sample,status,critical:cr,major:ma,minor:mi,
+ if(!lot||!dateRec||!odmCode||!code||lotSize<=0||sample<=0){toast("Please fill all IQC required fields.","error");return;}
+ const rec={module:"iqc",lot,dateRec,dateIns,odmCode,odm:odmName,code,desc,pg,cat,level,lotSize,sample,status,critical:cr,major:ma,minor:mi,
    totalNG:calc.total,ngPct:calc.ng,result:calc.pass?"PASSED":"FAILED",failDesc,picture,remarks,ts:new Date().toISOString()};
  iqcEntries.push(rec);save(IQC_KEY,iqcEntries);renderHistory("iqc");
  const now=new Date().toLocaleString("en-GB");
- const row=[now,"",lot,dateRec,dateIns,odm,code,desc,pg,cat,level,lotSize,sample,status,cr,ma,mi,calc.total,
+ const row=[now,"",lot,dateRec,dateIns,odmCode,odmName,code,desc,pg,cat,level,lotSize,sample,status,cr,ma,mi,calc.total,
    calc.pass?"PASSED":"FAILED",(calc.ng*100).toFixed(2),failDesc,picture,remarks];
  const msg=$("iqc-save-msg");
  try{ await postEp(getIqcEp(),{action:"iqc",data:row}); msg.textContent="Saved & synced to sheet ✓";msg.className="save-msg ok"; }
@@ -419,6 +425,7 @@ function init(){
  $("iqc-date-rec").value=todayStr();$("iqc-date-ins").value=todayStr();$("ipqc-date").value=todayStr();
  ["iqc-sample","iqc-critical","iqc-major","iqc-minor"].forEach(id=>$(id).addEventListener("input",iqcCompute));
  $("iqc-code").addEventListener("change",iqcMaterialChanged);
+ $("iqc-code").addEventListener("input",iqcMaterialChanged);
  $("iqc-lotsize").addEventListener("input",iqcAutoSample);
  $("iqc-form").addEventListener("submit",iqcSubmit);
  document.querySelectorAll("#ipqc-mode-toggle .pill").forEach(b=>b.addEventListener("click",()=>ipqcMode(b.dataset.mode)));

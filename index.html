@@ -123,8 +123,8 @@
         <button type="button" class="tiny-pill" data-day="ins" onclick="setToday('iqc',this.dataset.day)">Today</button></div></div>
     </div>
     <div class="grid-2">
-      <div class="field"><label>ODM Name *</label><select id="iqc-odm" required></select></div>
-      <div class="field"><label>Material Code *</label><select id="iqc-code" required></select></div>
+      <div class="field"><label>ODM (Code — Name) *</label><select id="iqc-odm" required></select></div>
+      <div class="field"><label>Material Code *</label><input type="text" id="iqc-code" list="material-list" placeholder="Type material code" required><datalist id="material-list"></datalist></div>
     </div>
     <div class="field"><label>Material Description</label><input type="text" id="iqc-desc" readonly></div>
     <div class="grid-3">
