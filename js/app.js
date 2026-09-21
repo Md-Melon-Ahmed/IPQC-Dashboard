@@ -108,8 +108,9 @@ function permsFor(email, lists){
 function anyPerm(p){return p.iqc||p.entry||p.dashboard||p.fpy;}
 async function submitAuth(){
   const email=$("auth-email").value.trim().toLowerCase();
-  const msg=$("auth-msg"), btn=$("auth-btn"), retry=$("auth-retry");
+  const msg=$("auth-msg"), btn=$("auth-btn"), retry=$("auth-retry"), req=$("auth-request");
   if(retry) retry.classList.add("hidden");
+  if(req){ req.classList.add("hidden"); req.disabled=false; req.textContent="✉ Request access from admin"; }
   if(!email || email.indexOf("@")<0){ msg.className="auth-msg"; msg.textContent="Enter a valid email address."; return; }
   if(btn) btn.disabled=true;
   msg.className="auth-msg"; msg.textContent="Checking…";
@@ -117,18 +118,36 @@ async function submitAuth(){
   if(btn) btn.disabled=false;
   if(!lists){ msg.textContent="Cannot verify right now. Make sure you are online, then retry."; if(retry) retry.classList.remove("hidden"); return; }
   const perms=permsFor(email, lists);
-  if(!anyPerm(perms)){ msg.textContent="This email is not authorized. Contact the QC admin."; return; }
+  if(!anyPerm(perms)){ msg.textContent="This email is not authorized yet. Tap below to request access from the admin."; if(req) req.classList.remove("hidden"); return; }
   AUTH={email,perms};
   try{ localStorage.setItem(AUTH_KEY, JSON.stringify(AUTH)); }catch(e){}
   msg.className="auth-msg ok"; msg.textContent="Access granted ✓";
   hideAuthGate(); applyPermissions(); refreshUserChip();
   toast("Signed in as "+email,"success");
 }
+async function requestAccess(){
+  const email=$("auth-email").value.trim().toLowerCase();
+  const msg=$("auth-msg"), btn=$("auth-request");
+  if(!email || email.indexOf("@")<0){ msg.className="auth-msg"; msg.textContent="Enter your email address first."; return; }
+  if(btn){ btn.disabled=true; btn.textContent="Sending…"; }
+  msg.className="auth-msg"; msg.textContent="Sending request to admin…";
+  let info=""; try{ info=(navigator.userAgent||"").slice(0,180); }catch(e){}
+  try{
+    const r=await postEp(getDataEp(),{action:"access",email:email,info:info});
+    if(r && r.status==="error") throw new Error(r.message||"error");
+    msg.className="auth-msg ok"; msg.textContent="Request sent ✓ The admin will add your email, then you can sign in.";
+    if(btn) btn.textContent="Request sent ✓";
+  }catch(err){
+    msg.className="auth-msg"; msg.textContent="Could not send the request. Check internet and try again.";
+    if(btn){ btn.disabled=false; btn.textContent="✉ Request access from admin"; }
+  }
+}
 function showAuthGate(){
   $("auth-gate").classList.remove("hidden");
   const e=$("auth-email"); if(e) e.value=AUTH.email||"";
   const m=$("auth-msg"); if(m){ m.className="auth-msg"; m.textContent=""; }
   const r=$("auth-retry"); if(r) r.classList.add("hidden");
+  const q=$("auth-request"); if(q){ q.classList.add("hidden"); q.disabled=false; q.textContent="✉ Request access from admin"; }
 }
 function hideAuthGate(){ $("auth-gate").classList.add("hidden"); }
 function signOut(){
@@ -325,7 +344,9 @@ async function iqcSubmit(e){e.preventDefault();
  const row=[now,"",lot,dateRec,dateIns,odmCode,odmName,code,desc,pg,cat,level,lotSize,sample,status,cr,ma,mi,calc.total,
    calc.pass?"PASSED":"FAILED",(calc.ng*100).toFixed(2),failDesc,picture,remarks];
  const msg=$("iqc-save-msg");
- try{ await postEp(getIqcEp(),{action:"iqc",email:AUTH.email,data:row}); msg.textContent="Saved & synced to sheet ✓";msg.className="save-msg ok"; }
+ try{ const r=await postEp(getIqcEp(),{action:"iqc",email:AUTH.email,data:row});
+   if(r && r.status==="error"){ msg.textContent="Not saved: "+(r.message||"server error");msg.className="save-msg err"; }
+   else { msg.textContent="Saved & synced to sheet ✓";msg.className="save-msg ok"; } }
  catch(err){ msg.textContent="Saved locally (sync pending)";msg.className="save-msg ok"; }
  toast("IQC entry saved","success");iqcReset();}
 
@@ -374,7 +395,9 @@ async function ipqcSubmit(e){e.preventDefault();
  const row=[now,"",date,section,line,hour,timeStr,code,item,pg,target,checked,passed,repaired,failed,defectTotal,
    Math.round(fpy*100)/100,JSON.stringify(defects),$("ipqc-remarks").value.trim()];
  const msg=$("ipqc-save-msg");
- try{ await postEp(getIpqcEp(),{action:"ipqc",email:AUTH.email,data:row}); msg.textContent="Saved & synced ✓";msg.className="save-msg ok"; }
+ try{ const r=await postEp(getIpqcEp(),{action:"ipqc",email:AUTH.email,data:row});
+   if(r && r.status==="error"){ msg.textContent="Not saved: "+(r.message||"server error");msg.className="save-msg err"; }
+   else { msg.textContent="Saved & synced ✓";msg.className="save-msg ok"; } }
  catch(err){ msg.textContent="Saved locally ✓";msg.className="save-msg ok"; }
  toast("IPQC entry saved","success");ipqcReset();}
 function ipqcSecCompute(){const c=parseFloat($("ipqc-sec-checked").value)||0,p=parseFloat($("ipqc-sec-passed").value)||0;
@@ -406,7 +429,16 @@ function renderHistory(mod){if(mod==="iqc"){const tb=$("iqc-tbody");tb.innerHTML
     <td><span class="${cls}">${e.fpy!=null?e.fpy.toFixed(2)+"%":""}</span></td><td>${esc(e.remarks||"")}</td>`;tb.appendChild(tr);});}}
 
 /* ============ Apps Script sync helper ============ */
-async function postEp(url,payload){await fetch(url,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});}
+async function postEp(url,payload){
+  try{
+    const r=await fetch(url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});
+    if(r && r.type!=="opaque"){
+      try{ return await r.json(); }catch(e){ return {status:"ok"}; }
+    }
+  }catch(e){}
+  await fetch(url,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});
+  return {status:"ok"};
+}
 
 /* ============ Dashboard ============ */
 function isDark(){return document.documentElement.getAttribute("data-theme")==="dark";}

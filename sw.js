@@ -1,5 +1,5 @@
 /* QC Pulse — Service Worker (offline-first PWA) */
-const CACHE = "qc-pulse-v8";
+const CACHE = "qc-pulse-v9";
 const CORE = [
   "./",
   "./index.html",
