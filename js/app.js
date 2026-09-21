@@ -26,20 +26,28 @@ const DEFECT_TYPES=["Connection Problem","Circuit Damage","Scratch","Spot","Impr
 const ODM_LIST=["Bhuiyan Poly Packs","Holopuls Techno","Joarder Printers","Metal Zone","Moon Corporation","Nezam Trading","Print Source","Priyanti Engineering","Royal Print Pack","SA EPS Insulation","Saadi Engineering","Taiji International","Unique Trade Corporation","United Packaging","Zara Printing & Packaging"];
 
 /* ============ Master data ============ */
-function jsonp(url){return new Promise((resolve,reject)=>{
+function jsonp(url,timeoutMs){return new Promise((resolve,reject)=>{
   const cb="cb"+Math.random().toString(36).slice(2);
   const s=document.createElement("script");
-  const t=setTimeout(()=>{cleanup();reject(new Error("timeout"))},20000);
+  const t=setTimeout(()=>{cleanup();reject(new Error("timeout"))},timeoutMs||20000);
   function cleanup(){try{delete window[cb]}catch(e){} s.remove(); clearTimeout(t);}
   window[cb]=d=>{cleanup();resolve(d)};
   s.onerror=()=>{cleanup();reject(new Error("network"))};
   s.src=url+(url.indexOf("?")<0?"?":"&")+"callback="+cb+"&_="+Date.now();
   document.body.appendChild(s);
 });}
+async function apiGet(action){
+  const url=getDataEp()+"?action="+action+"&_="+Date.now();
+  try{
+    const r=await fetch(url,{method:"GET",cache:"no-store"});
+    if(r && r.ok) return await r.json();
+  }catch(e){}
+  return await jsonp(url);
+}
 async function loadMaster(){
   setMasterStatus("loading");
   try{
-    const d=await jsonp(getDataEp()+"?action=master");
+    const d=await apiGet("master");
     if(d && d.status==="ok" && (d.items||[]).length){
       MASTER={items:d.items||[],materials:d.materials||[],suppliers:d.suppliers||[],
         defectTypes:d.defectTypes||[],aql:d.aql||{codeToSize:{},ranges:[],ac:{}},auth:d.auth||null};
@@ -80,15 +88,15 @@ function cachedAuth(){
 }
 function authOk(a){return a && (a.iqc||a.entry||a.dashboard||a.fpy);}
 async function fetchAuthLists(){
-  for(let i=0;i<3;i++){
+  if(MASTER && authOk(MASTER.auth)) return MASTER.auth;
+  for(let i=0;i<2;i++){
     try{
-      const d=await jsonp(getDataEp()+"?action=auth");
+      const d=await apiGet("auth");
       if(d && d.status==="ok" && authOk(d.auth)){ cacheAuth(d.auth); return d.auth; }
     }catch(e){}
-    if(i<2) await sleep(1200);
+    if(i<1) await sleep(800);
   }
-  if(MASTER && authOk(MASTER.auth)) return MASTER.auth;
-  for(let i=0;i<10 && !masterReady;i++) await sleep(800);
+  for(let i=0;i<12 && !masterReady;i++) await sleep(600);
   if(MASTER && authOk(MASTER.auth)) return MASTER.auth;
   return cachedAuth();
 }
@@ -145,8 +153,8 @@ function refreshUserChip(){
 async function bootstrapAuth(){
   let saved=null;
   try{ saved=JSON.parse(localStorage.getItem(AUTH_KEY)||"null"); }catch(e){}
-  const lists=await fetchAuthLists();
   if(saved && saved.email){
+    const lists=await fetchAuthLists();
     if(lists){
       const perms=permsFor(saved.email, lists);
       if(anyPerm(perms)){ AUTH={email:saved.email,perms}; hideAuthGate(); applyPermissions(); refreshUserChip(); return; }
@@ -155,6 +163,7 @@ async function bootstrapAuth(){
     }
   }
   applyPermissions(); refreshUserChip(); showAuthGate();
+  fetchAuthLists().catch(()=>{});   // warm the auth cache so Continue is instant
 }
 
 function populateAll(){ populateIQC(); populateIPQC(); }
@@ -249,12 +258,12 @@ function showEntry(which){hideAll();$(which+"-app").classList.add("active");rend
 function openDashboard(){if(!can("dashboard")){toast("You are not authorized to view the dashboard.","error");return;}hideAll();$("dashboard-app").classList.add("active");renderDashboard();loadRecords();}
 async function loadRecords(){
   try{
-    const d=await jsonp(getDataEp()+"?action=iqc");
+    const d=await apiGet("iqc");
     if(d&&d.rows){ iqcEntries=d.rows.map(r=>({lot:r[2],dateRec:r[3],dateIns:r[4],odm:r[5],code:r[6],desc:r[7],
       lotSize:parseInt(r[11])||0,sample:parseInt(r[12])||0,totalNG:parseInt(r[17])||0,result:r[18],ngPct:(parseFloat(r[19])||0)/100})); }
   }catch(e){}
   try{
-    const d2=await jsonp(getDataEp()+"?action=ipqc");
+    const d2=await apiGet("ipqc");
     if(d2&&d2.rows){ ipqcEntries=d2.rows.map(r=>{ let defs=[]; try{defs=JSON.parse(r[16]||"[]")}catch(e){}
       return {date:r[2],section:r[3],line:r[4],hour:r[5],code:r[6],item:r[7],checked:parseFloat(r[10])||0,
         passed:parseFloat(r[11])||0,failed:parseFloat(r[13])||0,defectTotal:parseFloat(r[14])||0,fpy:parseFloat(r[15])||0,defects:defs}; }); }
