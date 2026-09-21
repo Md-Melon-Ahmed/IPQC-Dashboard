@@ -220,7 +220,7 @@
       <div class="field"><label>Date *</label>
         <div class="date-row"><input type="date" id="ipqc-date" required>
         <button type="button" class="tiny-pill" onclick="setToday('ipqc')">Today</button></div></div>
-      <div class="field"><label>Hour / Time *</label><input type="text" id="ipqc-hour" list="ipqc-hour-list" placeholder="Type or pick hour"><datalist id="ipqc-hour-list"></datalist></div>
+      <div class="field"><label>Hour / Time *</label><input type="text" id="ipqc-hour" list="ipqc-hour-list" placeholder="e.g. 08 AM - 09 AM"><datalist id="ipqc-hour-list"></datalist></div>
       <div class="field"><label>Item (Code / Name) *</label><input type="text" id="ipqc-code" list="ipqc-item-list" placeholder="Type item code" required><datalist id="ipqc-item-list"></datalist></div>
     </div>
     <div class="field"><label>Item Name</label><input type="text" id="ipqc-item" readonly></div>
@@ -274,7 +274,7 @@
       <button class="btn-sm" onclick="renderHistory('ipqc')">Refresh</button>
       <button class="btn-sm danger" onclick="clearIpqc()">Clear Local</button></div>
     <div class="table-wrap"><table><thead>
-      <tr><th>#</th><th>Date</th><th>Section</th><th>Line</th><th>Item</th><th>Checked</th><th>Passed</th><th>Failed</th><th>Def</th><th>FPY</th><th>Remarks</th></tr>
+      <tr><th>#</th><th>Date</th><th>Section</th><th>Line</th><th>Hour / Time</th><th>Item</th><th>Checked</th><th>Passed</th><th>Failed</th><th>Def</th><th>FPY</th><th>Remarks</th></tr>
     </thead><tbody id="ipqc-tbody"></tbody></table></div>
   </div>
 

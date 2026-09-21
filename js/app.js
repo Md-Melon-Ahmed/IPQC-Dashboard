@@ -219,13 +219,18 @@ function fillDatalist(id, arr){
     return `<option value="${esc(x)}">`;
   }).join("");
 }
+function ipqcTimeList(){
+  const pairs={};
+  MASTER.items.forEach(i=>{ if(i.time && !(i.time in pairs)) pairs[i.time]=i.hour; });
+  return Object.keys(pairs).sort((a,b)=>(Number(pairs[a])||99)-(Number(pairs[b])||99));
+}
 function populateIPQC(){
   const sec=$("ipqc-section"); if(!sec) return;
   let secs=[...new Set(MASTER.items.map(i=>i.section).filter(Boolean))].sort();
   if(!secs.length) secs=FALLBACK_SECTIONS;
   sec.innerHTML=secs.map(s=>`<option>${esc(s)}</option>`).join("");
   fillDatalist("ipqc-line-list", [...new Set(MASTER.items.map(i=>i.line).filter(Boolean))].sort());
-  fillDatalist("ipqc-hour-list", [...new Set(MASTER.items.map(i=>i.hour).filter(x=>x!==""&&x!=null))].sort((a,b)=>a-b));
+  fillDatalist("ipqc-hour-list", ipqcTimeList());
   fillDatalist("ipqc-item-list", MASTER.items.map(i=>({v:i.code,t:i.code+" — "+i.name})));
   ipqcSectionChanged();
 }
@@ -242,8 +247,7 @@ function ipqcLineChanged(){
   const s=$("ipqc-section").value, l=$("ipqc-line").value;
   const items=MASTER.items.filter(i=>i.section===s && i.line===l);
   fillDatalist("ipqc-item-list", (items.length?items:MASTER.items).map(i=>({v:i.code,t:i.code+" — "+i.name})));
-  const hrs=[...new Set(MASTER.items.map(i=>i.hour).filter(x=>x!==""&&x!=null))].sort((a,b)=>a-b);
-  fillDatalist("ipqc-hour-list", hrs);
+  fillDatalist("ipqc-hour-list", ipqcTimeList());
 }
 function ipqcItemChanged(){
   const c=$("ipqc-code").value.trim();
@@ -383,10 +387,13 @@ async function ipqcSubmit(e){e.preventDefault();
  const checked=parseFloat($("ipqc-checked").value)||0,passed=parseFloat($("ipqc-passed").value)||0,failed=parseFloat($("ipqc-failed").value)||0,repaired=parseFloat($("ipqc-repaired").value)||0;
  const fpy=checked>0?passed/checked*100:0;
  const date=$("ipqc-date").value, section=$("ipqc-section").value, line=$("ipqc-line").value;
- const hour=$("ipqc-hour").value, code=$("ipqc-code").value, item=$("ipqc-item").value;
+ const hourRaw=$("ipqc-hour").value.trim(), code=$("ipqc-code").value.trim(), item=$("ipqc-item").value;
  const it=MASTER.items.find(x=>String(x.code)===String(code));
  const pg=it?it.pg:"", target=it?it.target:"";
- const timeStr=(MASTER.items.find(x=>String(x.hour)===String(hour)&&x.time)||{}).time||"";
+ const byTime=MASTER.items.find(x=>String(x.time)===hourRaw);
+ const byHour=MASTER.items.find(x=>String(x.hour)===hourRaw);
+ const hour=byTime?byTime.hour:(byHour?byHour.hour:hourRaw);
+ const timeStr=byTime?String(byTime.time):((byHour&&byHour.time)?String(byHour.time):"");
  if(!date||!code||!item||checked<=0){toast("Please fill IPQC required fields.","error");return;}
  const rec={module:"ipqc",date,section,line,hour,time:timeStr,code,item,pg,checked,passed,repaired,failed,defects,defectTotal,
    fpy:Math.round(fpy*100)/100,remarks:$("ipqc-remarks").value.trim(),ts:new Date().toISOString()};
@@ -422,10 +429,10 @@ function renderHistory(mod){if(mod==="iqc"){const tb=$("iqc-tbody");tb.innerHTML
    <td>${esc(e.desc)}</td><td>${e.lotSize}</td><td>${e.sample}</td><td>${e.totalNG||0}</td><td>${(e.ngPct!=null?(e.ngPct*100).toFixed(2)+"%":"")}</td>
    <td><span class="${e.result==="PASSED"?"pass":"fail"}">${e.result}</span></td>`;tb.appendChild(tr);});}
  else{const tb=$("ipqc-tbody");tb.innerHTML="";
-  const rows=ipqcEntries.slice().reverse().slice(0,40);if(!rows.length){tb.innerHTML='<tr><td colspan="11" style="text-align:center;color:#94a3b8">No entries yet</td></tr>';return;}
+  const rows=ipqcEntries.slice().reverse().slice(0,40);if(!rows.length){tb.innerHTML='<tr><td colspan="12" style="text-align:center;color:#94a3b8">No entries yet</td></tr>';return;}
   rows.forEach((e,i)=>{const tr=document.createElement("tr");const cls=(e.fpy!=null&&e.fpy>=95)?"pass":"fail";
    tr.innerHTML=`<td>${ipqcEntries.length-i}</td><td>${fmtDate(e.date)}</td><td>${esc(e.section)}</td><td>${esc(e.line)}</td>
-    <td>${esc(e.item||"")}</td><td>${e.checked||0}</td><td>${e.passed||0}</td><td>${e.failed||0}</td><td>${e.defectTotal||0}</td>
+    <td>${esc(e.time||e.hour||"")}</td><td>${esc(e.item||"")}</td><td>${e.checked||0}</td><td>${e.passed||0}</td><td>${e.failed||0}</td><td>${e.defectTotal||0}</td>
     <td><span class="${cls}">${e.fpy!=null?e.fpy.toFixed(2)+"%":""}</span></td><td>${esc(e.remarks||"")}</td>`;tb.appendChild(tr);});}}
 
 /* ============ Apps Script sync helper ============ */
