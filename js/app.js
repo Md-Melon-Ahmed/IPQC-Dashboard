@@ -37,14 +37,33 @@ function jsonp(url){return new Promise((resolve,reject)=>{
   document.body.appendChild(s);
 });}
 async function loadMaster(){
+  setMasterStatus("loading");
   try{
     const d=await jsonp(getDataEp()+"?action=master");
-    if(d && d.status==="ok"){
+    if(d && d.status==="ok" && (d.items||[]).length){
       MASTER={items:d.items||[],materials:d.materials||[],suppliers:d.suppliers||[],
         defectTypes:d.defectTypes||[],aql:d.aql||{codeToSize:{},ranges:[],ac:{}}};
-      masterReady=true; populateAll();
+      masterReady=true;
+      try{ localStorage.setItem("masterCache", JSON.stringify(MASTER)); }catch(e){}
+      populateAll(); setMasterStatus("ok");
+      return;
     }
-  }catch(e){ console.warn("master load failed",e); }
+    throw new Error("empty");
+  }catch(e){
+    try{
+      const c=localStorage.getItem("masterCache");
+      if(c){ MASTER=JSON.parse(c); masterReady=true; populateAll(); setMasterStatus("cached"); return; }
+    }catch(e2){}
+    setMasterStatus("failed");
+  }
+}
+function setMasterStatus(state){
+  const els=[$("iqc-master-status"),$("ipqc-master-status")].filter(Boolean);
+  els.forEach(el=>{
+    if(state==="loading"){ el.className="master-status warn"; el.innerHTML="&#9203; Loading master data…"; }
+    else if(state==="failed"){ el.className="master-status warn"; el.innerHTML='&#9888; Master data not loaded (check internet). You can still type ODM &amp; material manually. <button type="button" onclick="loadMaster()">Retry</button>'; }
+    else { el.className="master-status hidden"; el.innerHTML=""; }
+  });
 }
 function populateAll(){ populateIQC(); populateIPQC(); }
 
@@ -52,12 +71,10 @@ function populateIQC(){
   const odm=$("iqc-odm"), code=$("iqc-code");
   if(!odm||!code) return;
   const sup=MASTER.suppliers.length?MASTER.suppliers.map(s=>({code:s.code,name:s.name})):ODM_LIST.map(n=>({code:"",name:n}));
-  odm.innerHTML='<option value="">— select ODM —</option>'+
-    sup.map(s=>`<option value="${esc(s.code)}">${esc(s.code? s.code+" — ":"")}${esc(s.name)}</option>`).join("");
-  // material datalist (manual entry allowed)
-  const dl=$("material-list");
-  if(dl){ dl.innerHTML=MASTER.materials.map(m=>`<option value="${esc(m.code)}">${esc(m.desc)}</option>`).join(""); }
-  if(code && code.tagName==="SELECT"){ /* legacy */ }
+  const dl=$("odm-list");
+  if(dl) dl.innerHTML=sup.map(s=>`<option value="${esc(s.code||s.name)}">${esc(s.name)}</option>`).join("");
+  const mdl=$("material-list");
+  if(mdl) mdl.innerHTML=MASTER.materials.map(m=>`<option value="${esc(m.code)}">${esc(m.desc)}</option>`).join("");
 }
 function iqcMaterialChanged(){
   const c=$("iqc-code").value.trim();
@@ -74,33 +91,42 @@ function iqcAutoSample(){
   if(r){ const letter=r[level]||r["II"]; const size=(MASTER.aql.codeToSize||{})[letter]; if(size){ $("iqc-sample").value=size; iqcCompute(); } }
 }
 
+const FALLBACK_SECTIONS=["Gang Switch Socket","Lighting","Switch Socket","HAP","PSS & Others","MCB","SDB","Exhaust Fan","PVC Tape"];
+function fillDatalist(id, arr){
+  const dl=$(id); if(!dl) return;
+  dl.innerHTML=arr.map(x=>{
+    if(x && typeof x==="object") return `<option value="${esc(x.v)}">${esc(x.t)}</option>`;
+    return `<option value="${esc(x)}">`;
+  }).join("");
+}
 function populateIPQC(){
   const sec=$("ipqc-section"); if(!sec) return;
-  const secs=[...new Set(MASTER.items.map(i=>i.section).filter(Boolean))].sort();
-  sec.innerHTML='<option value="">— select section —</option>'+secs.map(s=>`<option>${esc(s)}</option>`).join("");
+  let secs=[...new Set(MASTER.items.map(i=>i.section).filter(Boolean))].sort();
+  if(!secs.length) secs=FALLBACK_SECTIONS;
+  sec.innerHTML=secs.map(s=>`<option>${esc(s)}</option>`).join("");
+  fillDatalist("ipqc-line-list", [...new Set(MASTER.items.map(i=>i.line).filter(Boolean))].sort());
+  fillDatalist("ipqc-hour-list", [...new Set(MASTER.items.map(i=>i.hour).filter(x=>x!==""&&x!=null))].sort((a,b)=>a-b));
+  fillDatalist("ipqc-item-list", MASTER.items.map(i=>({v:i.code,t:i.code+" — "+i.name})));
+  ipqcSectionChanged();
 }
 function ipqcSectionChanged(){
   const s=$("ipqc-section").value;
   const lines=[...new Set(MASTER.items.filter(i=>i.section===s).map(i=>i.line).filter(Boolean))].sort();
-  $("ipqc-line").innerHTML='<option value="">— select line —</option>'+lines.map(l=>`<option>${esc(l)}</option>`).join("");
-  $("ipqc-code").innerHTML='<option value="">— select item —</option>';
-  $("ipqc-hour").innerHTML='<option value="">— select hour —</option>';
+  fillDatalist("ipqc-line-list", lines);
+  const items=MASTER.items.filter(i=>i.section===s);
+  fillDatalist("ipqc-item-list", (items.length?items:MASTER.items).map(i=>({v:i.code,t:i.code+" — "+i.name})));
   $("ipqc-item").value="";
   renderDefectRows();
 }
 function ipqcLineChanged(){
   const s=$("ipqc-section").value, l=$("ipqc-line").value;
   const items=MASTER.items.filter(i=>i.section===s && i.line===l);
-  $("ipqc-code").innerHTML='<option value="">— select item —</option>'+
-    items.map(i=>`<option value="${esc(i.code)}">${esc(i.code)} — ${esc(i.name)}</option>`).join("");
-  // hours from master (unique)
+  fillDatalist("ipqc-item-list", (items.length?items:MASTER.items).map(i=>({v:i.code,t:i.code+" — "+i.name})));
   const hrs=[...new Set(MASTER.items.map(i=>i.hour).filter(x=>x!==""&&x!=null))].sort((a,b)=>a-b);
-  const times={}; MASTER.items.forEach(i=>{ if(i.hour!==undefined) times[i.hour]=i.time; });
-  $("ipqc-hour").innerHTML='<option value="">— select hour —</option>'+
-    hrs.map(h=>`<option value="${esc(h)}">${esc(h)}${times[h]?" — "+esc(times[h]):""}</option>`).join("");
+  fillDatalist("ipqc-hour-list", hrs);
 }
 function ipqcItemChanged(){
-  const c=$("ipqc-code").value;
+  const c=$("ipqc-code").value.trim();
   const it=MASTER.items.find(x=>String(x.code)===String(c));
   $("ipqc-item").value=it?it.name:"";
   renderDefectRows();
@@ -180,16 +206,16 @@ function iqcReset(){$("iqc-form").reset();$("iqc-date-rec").value=todayStr();$("
 async function iqcSubmit(e){e.preventDefault();
  const calc=iqcCompute();
  const lot=$("iqc-lot").value.trim(), dateRec=$("iqc-date-rec").value, dateIns=$("iqc-date-ins").value;
- const odmCode=$("iqc-odm").value;
- const sup=MASTER.suppliers.find(s=>String(s.code)===String(odmCode));
- const selOpt=$("iqc-odm").selectedOptions && $("iqc-odm").selectedOptions[0];
- let odmName=sup?sup.name:(selOpt?selOpt.textContent.replace(/^\S+\s*—\s*/,""):"");
+ const odmVal=$("iqc-odm").value.trim();
+ const sup=MASTER.suppliers.find(s=>String(s.code)===String(odmVal) || s.name===odmVal);
+ const odmCode=sup?String(sup.code):(/^\d+$/.test(odmVal)?odmVal:"");
+ const odmName=sup?sup.name:odmVal;
  const code=$("iqc-code").value.trim(), desc=$("iqc-desc").value.trim();
  const pg=$("iqc-pg").value, cat=$("iqc-cat").value, level=$("iqc-level").value;
  const lotSize=parseInt($("iqc-lotsize").value)||0, sample=parseInt($("iqc-sample").value)||0;
  const status=$("iqc-status").value, cr=parseInt($("iqc-critical").value)||0, ma=parseInt($("iqc-major").value)||0, mi=parseInt($("iqc-minor").value)||0;
  const failDesc=$("iqc-faildesc").value.trim(), picture=$("iqc-picture").value.trim(), remarks=$("iqc-remarks").value.trim();
- if(!lot||!dateRec||!odmCode||!code||lotSize<=0||sample<=0){toast("Please fill all IQC required fields.","error");return;}
+ if(!lot||!dateRec||!odmVal||!code||lotSize<=0||sample<=0){toast("Please fill all IQC required fields.","error");return;}
  const rec={module:"iqc",lot,dateRec,dateIns,odmCode,odm:odmName,code,desc,pg,cat,level,lotSize,sample,status,critical:cr,major:ma,minor:mi,
    totalNG:calc.total,ngPct:calc.ng,result:calc.pass?"PASSED":"FAILED",failDesc,picture,remarks,ts:new Date().toISOString()};
  iqcEntries.push(rec);save(IQC_KEY,iqcEntries);renderHistory("iqc");
@@ -432,6 +458,7 @@ function init(){
  $("ipqc-section").addEventListener("change",ipqcSectionChanged);
  $("ipqc-line").addEventListener("change",ipqcLineChanged);
  $("ipqc-code").addEventListener("change",ipqcItemChanged);
+ $("ipqc-code").addEventListener("input",ipqcItemChanged);
  ["ipqc-checked","ipqc-passed","ipqc-failed","ipqc-repaired"].forEach(id=>$(id).addEventListener("input",ipqcComputeDefects));
  $("ipqc-form").addEventListener("submit",ipqcSubmit);
  $("ipqc-section-form").addEventListener("submit",ipqcSecSubmit);

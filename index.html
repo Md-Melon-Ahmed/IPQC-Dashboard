@@ -105,6 +105,7 @@
   </div>
 
   <form id="iqc-form" class="form-card">
+    <div id="iqc-master-status" class="master-status hidden"></div>
     <div class="form-section-label">Material / Lot Details</div>
     <div class="grid-2">
       <div class="field"><label>LOT / LC No *</label><input type="text" id="iqc-lot" placeholder="e.g. 970" required></div>
@@ -123,7 +124,7 @@
         <button type="button" class="tiny-pill" data-day="ins" onclick="setToday('iqc',this.dataset.day)">Today</button></div></div>
     </div>
     <div class="grid-2">
-      <div class="field"><label>ODM (Code — Name) *</label><select id="iqc-odm" required></select></div>
+      <div class="field"><label>ODM (Code / Name) *</label><input type="text" id="iqc-odm" list="odm-list" placeholder="Type or pick ODM code" required><datalist id="odm-list"></datalist></div>
       <div class="field"><label>Material Code *</label><input type="text" id="iqc-code" list="material-list" placeholder="Type material code" required><datalist id="material-list"></datalist></div>
     </div>
     <div class="field"><label>Material Description</label><input type="text" id="iqc-desc" readonly></div>
@@ -192,16 +193,17 @@
 
   <!-- LINE MODE -->
   <form id="ipqc-form" class="form-card">
+    <div id="ipqc-master-status" class="master-status hidden"></div>
     <div class="grid-2">
       <div class="field"><label>Section *</label><select id="ipqc-section"></select></div>
-      <div class="field"><label>Assembly Line *</label><select id="ipqc-line"></select></div>
+      <div class="field"><label>Assembly Line *</label><input type="text" id="ipqc-line" list="ipqc-line-list" placeholder="Type or pick line" required><datalist id="ipqc-line-list"></datalist></div>
     </div>
     <div class="grid-3">
       <div class="field"><label>Date *</label>
         <div class="date-row"><input type="date" id="ipqc-date" required>
         <button type="button" class="tiny-pill" onclick="setToday('ipqc')">Today</button></div></div>
-      <div class="field"><label>Hour / Time *</label><select id="ipqc-hour"></select></div>
-      <div class="field"><label>Item *</label><select id="ipqc-code"></select></div>
+      <div class="field"><label>Hour / Time *</label><input type="text" id="ipqc-hour" list="ipqc-hour-list" placeholder="Type or pick hour"><datalist id="ipqc-hour-list"></datalist></div>
+      <div class="field"><label>Item (Code / Name) *</label><input type="text" id="ipqc-code" list="ipqc-item-list" placeholder="Type item code" required><datalist id="ipqc-item-list"></datalist></div>
     </div>
     <div class="field"><label>Item Name</label><input type="text" id="ipqc-item" readonly></div>
     <div class="grid-4">

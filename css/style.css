@@ -277,3 +277,9 @@ html[data-theme="sepia"] .brand-title{color:#4a3b28}
 html[data-theme="sepia"] .field input,html[data-theme="sepia"] .field select{background:#fdf7ea;border-color:#d6c4a0;color:#4a3b28}
 html[data-theme="sepia"] th{color:#7a6848;background:rgba(214,196,160,.2)}
 html[data-theme="sepia"] td{border-color:rgba(214,196,160,.4)}
+
+.master-status{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px;font-weight:700;padding:10px 14px;border-radius:10px;margin-bottom:14px}
+.master-status.warn{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:#b45309}
+.master-status.ok{background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.4);color:#047857}
+.master-status button{font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px;border:1px solid currentColor;background:transparent;color:inherit;cursor:pointer}
+
