@@ -32,6 +32,19 @@
   <div class="orb orb-blue"></div>
 </div>
 
+<!-- ================= AUTH GATE ================= -->
+<div id="auth-gate" class="auth-gate hidden">
+  <div class="auth-card">
+    <div class="brand-logo">QC</div>
+    <h2 class="auth-title">Authorized Access</h2>
+    <p class="auth-sub">QC Pulse data entry is restricted. Enter your approved email address to continue.</p>
+    <input type="email" id="auth-email" class="auth-input" placeholder="you@company.com" autocomplete="email" inputmode="email">
+    <button type="button" class="auth-btn" id="auth-btn" onclick="submitAuth()">Continue</button>
+    <div id="auth-msg" class="auth-msg"></div>
+    <p class="auth-note">Not listed? Ask the QC admin to add your email under <b>Master_Data</b> &rarr; “Entry / IQC / Dashboard Authorized Mail Address”.</p>
+  </div>
+</div>
+
 <!-- ================= LANDING ================= -->
 <div id="landing-view" class="view active">
   <div class="landing-center">
@@ -47,12 +60,12 @@
     </div>
 
     <div class="workspace-grid">
-      <button class="glass-card" onclick="openChooser()">
+      <button class="glass-card" data-perm="entry" onclick="openChooser()">
         <div class="icon-tile teal">+</div>
         <h3 data-i18n="entry">Entry</h3>
         <p data-i18n="entry_desc">Record IQC and IPQC inspection data in real time.</p>
       </button>
-      <button class="glass-card" onclick="openDashboard()">
+      <button class="glass-card" data-perm="dashboard" onclick="openDashboard()">
         <div class="icon-tile teal">▦</div>
         <h3 data-i18n="dashboard">Dashboard</h3>
         <p data-i18n="dashboard_desc">Live QC analytics: FPY, pass rates, defect pareto &amp; more.</p>
@@ -65,6 +78,7 @@
       <button class="mini-icon" id="btn-theme-landing" onclick="cycleTheme()" title="Theme"><span class="theme-icon">☀</span></button>
       <button class="mini-icon" onclick="cycleLang()" title="Language"><span class="lang-icon">বাং</span></button>
     </div>
+    <div class="landing-user"><button class="user-chip hidden" onclick="signOut()" title="Tap to sign out"></button></div>
     <div class="version">v2026.09.03</div>
   </div>
 </div>
@@ -77,12 +91,12 @@
       <p data-i18n="choose_entry">Choose Entry Type</p>
     </div>
     <div class="workspace-grid">
-      <button class="glass-card" onclick="showEntry('iqc')">
+      <button class="glass-card" data-perm="iqc" onclick="showEntry('iqc')">
         <div class="icon-tile teal">⇥</div>
         <h3>IQC Entry</h3>
         <p>Incoming material inspection — AQL lot sampling.</p>
       </button>
-      <button class="glass-card purple" onclick="showEntry('ipqc')">
+      <button class="glass-card purple" data-perm="entry" onclick="showEntry('ipqc')">
         <div class="icon-tile purple">◉</div>
         <h3>IPQC Entry</h3>
         <p>In-process line checks &amp; hourly defect capture.</p>
@@ -97,10 +111,11 @@
   <div class="entry-header">
     <div class="entry-brand"><span class="brand-logo sm">QC</span><span class="entry-title">IQC — Incoming Quality Control</span></div>
     <div class="entry-nav">
-      <button class="nav-chip teal" onclick="showEntry('ipqc')" data-i18n="ipqc_entry">IPQC Entry</button>
-      <button class="nav-chip" onclick="openDashboard()" data-i18n="dashboard">Dashboard</button>
+      <button class="nav-chip teal" data-perm="entry" onclick="showEntry('ipqc')" data-i18n="ipqc_entry">IPQC Entry</button>
+      <button class="nav-chip" data-perm="dashboard" onclick="openDashboard()" data-i18n="dashboard">Dashboard</button>
       <button class="nav-chip" id="btn-theme-iqc" onclick="cycleTheme()"><span class="theme-icon">☀</span></button>
       <button class="nav-chip" onclick="cycleLang()"><span class="lang-icon">বাং</span></button>
+      <button class="user-chip hidden" onclick="signOut()" title="Tap to sign out"></button>
     </div>
   </div>
 
@@ -179,10 +194,11 @@
   <div class="entry-header purple-hd">
     <div class="entry-brand"><span class="brand-logo sm purple">◉</span><span class="entry-title">IPQC — In-Process Quality Control</span></div>
     <div class="entry-nav">
-      <button class="nav-chip teal" onclick="showEntry('iqc')">IQC Entry</button>
-      <button class="nav-chip" onclick="openDashboard()" data-i18n="dashboard">Dashboard</button>
+      <button class="nav-chip teal" data-perm="iqc" onclick="showEntry('iqc')">IQC Entry</button>
+      <button class="nav-chip" data-perm="dashboard" onclick="openDashboard()" data-i18n="dashboard">Dashboard</button>
       <button class="nav-chip" id="btn-theme-ipqc" onclick="cycleTheme()"><span class="theme-icon">☀</span></button>
       <button class="nav-chip" onclick="cycleLang()"><span class="lang-icon">বাং</span></button>
+      <button class="user-chip hidden" onclick="signOut()" title="Tap to sign out"></button>
     </div>
   </div>
 

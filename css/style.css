@@ -283,3 +283,34 @@ html[data-theme="sepia"] td{border-color:rgba(214,196,160,.4)}
 .master-status.ok{background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.4);color:#047857}
 .master-status button{font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px;border:1px solid currentColor;background:transparent;color:inherit;cursor:pointer}
 
+/* ============ Auth gate (restricted data entry) ============ */
+.auth-gate{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:rgba(15,23,42,.74);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.auth-gate.hidden{display:none}
+.auth-card{width:100%;max-width:430px;background:#fff;border-radius:20px;padding:28px 24px;text-align:center;
+  box-shadow:0 24px 60px rgba(2,6,23,.35);display:flex;flex-direction:column;align-items:center;gap:10px}
+.auth-title{margin:2px 0 0;font-size:20px;font-weight:800;color:#0f172a;letter-spacing:-.01em}
+.auth-sub{margin:0;font-size:13px;color:#64748b;line-height:1.55}
+.auth-input{width:100%;padding:13px 14px;border:1.5px solid #cbd5e1;border-radius:12px;font-size:15px;outline:none;
+  font-family:inherit;box-sizing:border-box;background:#fff;color:#0f172a}
+.auth-input:focus{border-color:#0D5C58;box-shadow:0 0 0 3px rgba(13,92,88,.14)}
+.auth-btn{width:100%;padding:13px;border:none;border-radius:12px;background:#0D5C58;color:#fff;font-size:15px;
+  font-weight:800;cursor:pointer;font-family:inherit;transition:background .15s}
+.auth-btn:hover{background:#0a4a47}
+.auth-btn:disabled{opacity:.6;cursor:default}
+.auth-msg{min-height:17px;font-size:12.5px;font-weight:700;color:#dc2626;line-height:1.4}
+.auth-msg.ok{color:#0D5C58}
+.auth-note{margin:2px 0 0;font-size:11.5px;color:#94a3b8;line-height:1.5}
+.landing-user{margin-top:10px}
+.user-chip{font-size:11px;font-weight:700;color:#475569;background:rgba(255,255,255,.9);
+  border:1px solid rgba(148,163,184,.35);padding:5px 11px;border-radius:999px;cursor:pointer;font-family:inherit;
+  display:inline-flex;align-items:center;gap:6px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.user-chip:hover{color:#0D5C58;border-color:#0D5C58}
+.user-chip.hidden{display:none}
+html[data-theme="dark"] .auth-card{background:#0f172a}
+html[data-theme="dark"] .auth-title{color:#e2e8f0}
+html[data-theme="dark"] .auth-input{background:#1e293b;border-color:#334155;color:#e2e8f0}
+html[data-theme="dark"] .user-chip{background:#1e293b;color:#cbd5e1;border-color:#334155}
+html[data-theme="dark"] .user-chip:hover{color:#2dd4bf;border-color:#2dd4bf}
+
+

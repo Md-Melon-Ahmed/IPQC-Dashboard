@@ -65,6 +65,79 @@ function setMasterStatus(state){
     else { el.className="master-status hidden"; el.innerHTML=""; }
   });
 }
+
+/* ============ Authorization (restricted data entry) ============ */
+const AUTH_KEY="qcAuthUser";
+let AUTH={email:"",perms:{iqc:false,entry:false,dashboard:false,fpy:false}};
+function can(p){return !!AUTH.perms[p];}
+async function fetchAuthLists(){
+  try{
+    const d=await jsonp(getDataEp()+"?action=auth");
+    if(d && d.status==="ok" && d.auth) return d.auth;
+  }catch(e){}
+  try{ const c=JSON.parse(localStorage.getItem("masterCache")||"null"); if(c&&c.auth) return c.auth; }catch(e){}
+  if(MASTER && MASTER.auth) return MASTER.auth;
+  return null;
+}
+function permsFor(email, lists){
+  const e=String(email||"").trim().toLowerCase();
+  const has=k=>(lists&&lists[k]?lists[k]:[]).indexOf(e)>=0;
+  return { iqc:has("iqc"), entry:has("entry"), dashboard:has("dashboard"), fpy:has("fpy") };
+}
+function anyPerm(p){return p.iqc||p.entry||p.dashboard||p.fpy;}
+async function submitAuth(){
+  const email=$("auth-email").value.trim().toLowerCase();
+  const msg=$("auth-msg"), btn=$("auth-btn");
+  if(!email || email.indexOf("@")<0){ msg.className="auth-msg"; msg.textContent="Enter a valid email address."; return; }
+  if(btn) btn.disabled=true;
+  msg.className="auth-msg"; msg.textContent="Checking…";
+  const lists=await fetchAuthLists();
+  if(btn) btn.disabled=false;
+  if(!lists){ msg.textContent="Cannot verify right now — check your internet and retry."; return; }
+  const perms=permsFor(email, lists);
+  if(!anyPerm(perms)){ msg.textContent="This email is not authorized. Contact the QC admin."; return; }
+  AUTH={email,perms};
+  try{ localStorage.setItem(AUTH_KEY, JSON.stringify(AUTH)); }catch(e){}
+  msg.className="auth-msg ok"; msg.textContent="Access granted ✓";
+  hideAuthGate(); applyPermissions(); refreshUserChip();
+  toast("Signed in as "+email,"success");
+}
+function showAuthGate(){ $("auth-gate").classList.remove("hidden"); const e=$("auth-email"); if(e) e.value=AUTH.email||""; }
+function hideAuthGate(){ $("auth-gate").classList.add("hidden"); }
+function signOut(){
+  try{ localStorage.removeItem(AUTH_KEY); }catch(e){}
+  AUTH={email:"",perms:{iqc:false,entry:false,dashboard:false,fpy:false}};
+  applyPermissions(); refreshUserChip(); showLanding(); showAuthGate();
+}
+function applyPermissions(){
+  const authed=!!AUTH.email;
+  document.querySelectorAll("[data-perm]").forEach(el=>{
+    const p=el.getAttribute("data-perm");
+    const ok=p==="entry" ? (can("entry")||can("iqc")) : can(p);
+    el.classList.toggle("hidden", authed && !ok);
+  });
+}
+function refreshUserChip(){
+  document.querySelectorAll(".user-chip").forEach(el=>{
+    if(AUTH.email){ el.textContent="👤 "+AUTH.email+" ✕"; el.classList.remove("hidden"); }
+    else { el.textContent=""; el.classList.add("hidden"); }
+  });
+}
+async function bootstrapAuth(){
+  let saved=null;
+  try{ saved=JSON.parse(localStorage.getItem(AUTH_KEY)||"null"); }catch(e){}
+  const lists=await fetchAuthLists();
+  if(saved && saved.email){
+    if(lists){
+      const perms=permsFor(saved.email, lists);
+      if(anyPerm(perms)){ AUTH={email:saved.email,perms}; hideAuthGate(); applyPermissions(); refreshUserChip(); return; }
+    } else {
+      AUTH=saved; hideAuthGate(); applyPermissions(); refreshUserChip(); return;
+    }
+  }
+  applyPermissions(); refreshUserChip(); showAuthGate();
+}
+
 function populateAll(){ populateIQC(); populateIPQC(); }
 
 function populateIQC(){
@@ -154,7 +227,7 @@ function hideAll(){["landing-view","chooser-view","iqc-app","ipqc-app","dashboar
 function showLanding(){hideAll();$("landing-view").classList.add("active");}
 function openChooser(){hideAll();$("chooser-view").classList.add("active");}
 function showEntry(which){hideAll();$(which+"-app").classList.add("active");renderHistory(which);}
-function openDashboard(){hideAll();$("dashboard-app").classList.add("active");renderDashboard();loadRecords();}
+function openDashboard(){if(!can("dashboard")){toast("You are not authorized to view the dashboard.","error");return;}hideAll();$("dashboard-app").classList.add("active");renderDashboard();loadRecords();}
 async function loadRecords(){
   try{
     const d=await jsonp(getDataEp()+"?action=iqc");
@@ -204,6 +277,7 @@ function iqcCompute(){const sample=parseFloat($("iqc-sample").value)||0;
 function iqcReset(){$("iqc-form").reset();$("iqc-date-rec").value=todayStr();$("iqc-date-ins").value=todayStr();
  $("iqc-critical").value=0;$("iqc-major").value=0;$("iqc-minor").value=0;iqcCompute();}
 async function iqcSubmit(e){e.preventDefault();
+ if(!can("iqc")){toast("You are not authorized to enter IQC data.","error");return;}
  const calc=iqcCompute();
  const lot=$("iqc-lot").value.trim(), dateRec=$("iqc-date-rec").value, dateIns=$("iqc-date-ins").value;
  const odmVal=$("iqc-odm").value.trim();
@@ -223,7 +297,7 @@ async function iqcSubmit(e){e.preventDefault();
  const row=[now,"",lot,dateRec,dateIns,odmCode,odmName,code,desc,pg,cat,level,lotSize,sample,status,cr,ma,mi,calc.total,
    calc.pass?"PASSED":"FAILED",(calc.ng*100).toFixed(2),failDesc,picture,remarks];
  const msg=$("iqc-save-msg");
- try{ await postEp(getIqcEp(),{action:"iqc",data:row}); msg.textContent="Saved & synced to sheet ✓";msg.className="save-msg ok"; }
+ try{ await postEp(getIqcEp(),{action:"iqc",email:AUTH.email,data:row}); msg.textContent="Saved & synced to sheet ✓";msg.className="save-msg ok"; }
  catch(err){ msg.textContent="Saved locally (sync pending)";msg.className="save-msg ok"; }
  toast("IQC entry saved","success");iqcReset();}
 
@@ -251,6 +325,7 @@ function ipqcComputeDefects(){let total=0;
 function ipqcReset(){$("ipqc-form").reset();$("ipqc-date").value=todayStr();$("ipqc-repaired").value=0;$("ipqc-failed").value=0;
  $("ipqc-defect-rows").innerHTML="";addDefectRow();ipqcComputeDefects();}
 async function ipqcSubmit(e){e.preventDefault();
+ if(!can("entry")){toast("You are not authorized to enter IPQC data.","error");return;}
  const defects=[];let defectTotal=0;
  document.querySelectorAll("#ipqc-defect-rows .defect-row").forEach(r=>{const ty=r.querySelector("select").value;const q=parseInt(r.querySelector("input").value)||0;
   if(ty&&q>0){defects.push({type:ty,qty:q});defectTotal+=q;}});
@@ -268,12 +343,13 @@ async function ipqcSubmit(e){e.preventDefault();
  const row=[now,"",date,section,line,hour,code,item,pg,target,checked,passed,repaired,failed,defectTotal,
    Math.round(fpy*100)/100,JSON.stringify(defects),$("ipqc-remarks").value.trim()];
  const msg=$("ipqc-save-msg");
- try{ await postEp(getIpqcEp(),{action:"ipqc",data:row}); msg.textContent="Saved & synced ✓";msg.className="save-msg ok"; }
+ try{ await postEp(getIpqcEp(),{action:"ipqc",email:AUTH.email,data:row}); msg.textContent="Saved & synced ✓";msg.className="save-msg ok"; }
  catch(err){ msg.textContent="Saved locally ✓";msg.className="save-msg ok"; }
  toast("IPQC entry saved","success");ipqcReset();}
 function ipqcSecCompute(){const c=parseFloat($("ipqc-sec-checked").value)||0,p=parseFloat($("ipqc-sec-passed").value)||0;
  const f=c>0?p/c*100:0;const el=$("ipqc-sec-fpy");el.textContent=c>0?f.toFixed(2)+"%":"—";el.className=f>=95?"pass":"fail";}
 async function ipqcSecSubmit(e){e.preventDefault();
+ if(!can("entry")){toast("You are not authorized to enter IPQC data.","error");return;}
  const c=parseFloat($("ipqc-sec-checked").value)||0,p=parseFloat($("ipqc-sec-passed").value)||0;
  if(c<=0){toast("Enter checked qty","error");return;}
  const rec={module:"ipqc-section",month:$("ipqc-month").value,date:todayStr(),section:$("ipqc-sec-name").value,
@@ -467,5 +543,7 @@ function init(){
  iqcReset();ipqcReset();ipqcSecCompute();addDefectRow();
  applyI18n();
  loadMaster();
+ bootstrapAuth();
+ $("auth-email").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();submitAuth();}});
 }
 document.addEventListener("DOMContentLoaded",()=>{init();showLanding();});
