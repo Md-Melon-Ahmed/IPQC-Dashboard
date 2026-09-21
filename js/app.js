@@ -348,8 +348,10 @@ function ipqcComputeDefects(){let total=0;
  document.querySelectorAll("#ipqc-defect-rows .defect-row").forEach(r=>{const q=parseInt(r.querySelector("input").value)||0;total+=q;});
  $("ipqc-defect-total").textContent=total;$("ipqc-def-total2").textContent=total;
  const checked=parseFloat($("ipqc-checked").value)||0,passed=parseFloat($("ipqc-passed").value)||0,failed=parseFloat($("ipqc-failed").value)||0;
- const fpy=checked>0?passed/checked*100:0;const fp=$("ipqc-fpy");fp.textContent=checked>0?fpy.toFixed(2)+"%":"—";
- fp.className=fpy>=95?"pass":(fpy>=90?"":"fail");$("ipqc-failpct").textContent=checked>0?(failed/checked*100).toFixed(2)+"%":"—";}
+ const fp=$("ipqc-fpy");
+ if(checked>0){const fpy=passed/checked*100;fp.textContent=fpy.toFixed(2)+"%";fp.className=fpy>=95?"pass":(fpy>=90?"warn":"fail");}
+ else{fp.textContent="—";fp.className="";}
+ $("ipqc-failpct").textContent=checked>0?(failed/checked*100).toFixed(2)+"%":"—";}
 function ipqcReset(){$("ipqc-form").reset();$("ipqc-date").value=todayStr();$("ipqc-repaired").value=0;$("ipqc-failed").value=0;
  $("ipqc-defect-rows").innerHTML="";addDefectRow();ipqcComputeDefects();}
 async function ipqcSubmit(e){e.preventDefault();
@@ -363,12 +365,13 @@ async function ipqcSubmit(e){e.preventDefault();
  const hour=$("ipqc-hour").value, code=$("ipqc-code").value, item=$("ipqc-item").value;
  const it=MASTER.items.find(x=>String(x.code)===String(code));
  const pg=it?it.pg:"", target=it?it.target:"";
+ const timeStr=(MASTER.items.find(x=>String(x.hour)===String(hour)&&x.time)||{}).time||"";
  if(!date||!code||!item||checked<=0){toast("Please fill IPQC required fields.","error");return;}
- const rec={module:"ipqc",date,section,line,hour,code,item,pg,checked,passed,repaired,failed,defects,defectTotal,
+ const rec={module:"ipqc",date,section,line,hour,time:timeStr,code,item,pg,checked,passed,repaired,failed,defects,defectTotal,
    fpy:Math.round(fpy*100)/100,remarks:$("ipqc-remarks").value.trim(),ts:new Date().toISOString()};
  ipqcEntries.push(rec);save(IPQC_KEY,ipqcEntries);renderHistory("ipqc");
  const now=new Date().toLocaleString("en-GB");
- const row=[now,"",date,section,line,hour,code,item,pg,target,checked,passed,repaired,failed,defectTotal,
+ const row=[now,"",date,section,line,hour,timeStr,code,item,pg,target,checked,passed,repaired,failed,defectTotal,
    Math.round(fpy*100)/100,JSON.stringify(defects),$("ipqc-remarks").value.trim()];
  const msg=$("ipqc-save-msg");
  try{ await postEp(getIpqcEp(),{action:"ipqc",email:AUTH.email,data:row}); msg.textContent="Saved & synced ✓";msg.className="save-msg ok"; }

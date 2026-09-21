@@ -117,8 +117,9 @@ html[lang="bn"] body{font-family:'Noto Sans Bengali',Inter,sans-serif}
 .result-item span{font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.08em}
 .result-item b{font-size:22px;font-weight:900;color:var(--enovar)}
 .result-strip.purple .result-item b{color:var(--purple)}
-.result-item b.pass{color:var(--ok)}
-.result-item b.fail{color:var(--bad)}
+.result-item b.pass{background:#6AA84F;color:#fff;font-weight:800;padding:3px 10px;border-radius:999px;display:inline-block}
+.result-item b.fail{background:#FF0000;color:#fff;font-weight:800;padding:3px 10px;border-radius:999px;display:inline-block}
+.result-item b.warn{background:#F59E0B;color:#fff;font-weight:800;padding:3px 10px;border-radius:999px;display:inline-block}
 
 /* Mode toggle */
 .mode-toggle{display:flex;gap:8px;margin-bottom:14px}
@@ -161,7 +162,11 @@ html[lang="bn"] body{font-family:'Noto Sans Bengali',Inter,sans-serif}
 table{width:100%;border-collapse:collapse;font-size:12.5px}
 th,td{border-bottom:1px solid rgba(148,163,184,.2);padding:8px 9px;text-align:left;white-space:nowrap}
 th{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#64748b;background:rgba(148,163,184,.08);position:sticky;top:0}
-td .pass{color:var(--ok);font-weight:800}.td .fail,.fail{color:var(--bad);font-weight:800}
+/* PASSED = green, FAILED = red (matches Google Sheet) */
+td .pass,td .warn,td .fail,#iqc-calc-result.pass,#iqc-calc-result.fail{color:#fff;font-weight:800;padding:3px 10px;border-radius:999px;display:inline-block;white-space:nowrap}
+td .pass,#iqc-calc-result.pass{background:#6AA84F}
+td .fail,#iqc-calc-result.fail{background:#FF0000}
+td .warn{background:#F59E0B}
 tr:nth-child(even) td{background:rgba(255,255,255,.3)}
 
 .app-footer{display:flex;justify-content:space-between;align-items:center;margin-top:26px;padding-top:16px;border-top:1px solid rgba(148,163,184,.2)}
