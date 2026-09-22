@@ -72,6 +72,11 @@
         <h3 data-i18n="dashboard">Dashboard</h3>
         <p data-i18n="dashboard_desc">Live QC analytics: FPY, pass rates, defect pareto &amp; more.</p>
       </button>
+      <button class="glass-card amber" data-perm="oqc" onclick="showEntry('oqc')">
+        <div class="icon-tile amber">⇤</div>
+        <h3>OQC Entry</h3>
+        <p>Outgoing quality check — final AQL lot sampling.</p>
+      </button>
     </div>
 
     <div class="landing-foot">
@@ -103,6 +108,11 @@
         <h3>IPQC Entry</h3>
         <p>In-process line checks &amp; hourly defect capture.</p>
       </button>
+      <button class="glass-card amber" data-perm="oqc" onclick="showEntry('oqc')">
+        <div class="icon-tile amber">⇤</div>
+        <h3>OQC Entry</h3>
+        <p>Outgoing quality check — final AQL lot sampling.</p>
+      </button>
     </div>
     <button class="link-btn" onclick="showLanding()">← <span data-i18n="back_home">Back to Home</span></button>
   </div>
@@ -114,6 +124,7 @@
     <div class="entry-brand"><span class="brand-logo sm">QC</span><span class="entry-title">IQC — Incoming Quality Control</span></div>
     <div class="entry-nav">
       <button class="nav-chip teal" data-perm="entry" onclick="showEntry('ipqc')" data-i18n="ipqc_entry">IPQC Entry</button>
+      <button class="nav-chip amber" data-perm="oqc" onclick="showEntry('oqc')">OQC Entry</button>
       <button class="nav-chip" data-perm="dashboard" onclick="openDashboard()" data-i18n="dashboard">Dashboard</button>
       <button class="nav-chip" id="btn-theme-iqc" onclick="cycleTheme()"><span class="theme-icon">☀</span></button>
       <button class="nav-chip" onclick="cycleLang()"><span class="lang-icon">বাং</span></button>
@@ -191,12 +202,97 @@
   <div class="app-footer"><span>Akij Light Engineering Ltd.</span><button class="nav-chip" onclick="showLanding()">← Home</button></div>
 </div>
 
+<!-- ================= OQC ENTRY ================= -->
+<div id="oqc-app" class="entry-app">
+  <div class="entry-header amber-hd">
+    <div class="entry-brand"><span class="brand-logo sm amber">⇤</span><span class="entry-title">OQC — Outgoing Quality Control</span></div>
+    <div class="entry-nav">
+      <button class="nav-chip teal" data-perm="iqc" onclick="showEntry('iqc')">IQC Entry</button>
+      <button class="nav-chip" data-perm="entry" onclick="showEntry('ipqc')">IPQC Entry</button>
+      <button class="nav-chip" data-perm="dashboard" onclick="openDashboard()" data-i18n="dashboard">Dashboard</button>
+      <button class="nav-chip" id="btn-theme-oqc" onclick="cycleTheme()"><span class="theme-icon">☀</span></button>
+      <button class="nav-chip" onclick="cycleLang()"><span class="lang-icon">বাং</span></button>
+      <button class="user-chip hidden" onclick="signOut()" title="Tap to sign out"></button>
+    </div>
+  </div>
+
+  <form id="oqc-form" class="form-card">
+    <div id="oqc-master-status" class="master-status hidden"></div>
+    <div class="form-section-label">Material / Lot Details</div>
+    <div class="grid-2">
+      <div class="field"><label>LOT / LC No *</label><input type="text" id="oqc-lot" placeholder="e.g. 970" required></div>
+      <div class="field"><label>Month Sheet</label>
+        <select id="oqc-month">
+          <option>Sep-26</option><option>Aug-26</option><option>July-26</option><option>June-26</option>
+          <option>May-26</option><option>Apr-26</option><option>Mar-26</option><option>Feb-26</option><option>Jan-26</option>
+        </select></div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>Date of Received *</label>
+        <div class="date-row"><input type="date" id="oqc-date-rec" required>
+        <button type="button" class="tiny-pill" data-day="rec" onclick="setToday('oqc',this.dataset.day)">Today</button></div></div>
+      <div class="field"><label>Date of Inspection *</label>
+        <div class="date-row"><input type="date" id="oqc-date-ins" required>
+        <button type="button" class="tiny-pill" data-day="ins" onclick="setToday('oqc',this.dataset.day)">Today</button></div></div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>ODM / Customer (Code / Name) *</label><input type="text" id="oqc-odm" list="odm-list" placeholder="Type or pick ODM code" required></div>
+      <div class="field"><label>Material Code *</label><input type="text" id="oqc-code" list="oqc-material-list" placeholder="Type material code" required><datalist id="oqc-material-list"></datalist></div>
+    </div>
+    <div class="field"><label>Material Description</label><input type="text" id="oqc-desc" readonly></div>
+    <div class="grid-3">
+      <div class="field"><label>PG</label><input type="text" id="oqc-pg" readonly></div>
+      <div class="field"><label>Category</label><input type="text" id="oqc-cat" readonly></div>
+      <div class="field"><label>Inspection Level</label><input type="text" id="oqc-level" readonly></div>
+    </div>
+
+    <div class="form-section-label">Sampling &amp; Inspection (AQL ISO-2859-1)</div>
+    <div class="grid-2">
+      <div class="field"><label>Lot Size *</label><input type="number" id="oqc-lotsize" min="1" placeholder="Total lot qty" required></div>
+      <div class="field"><label>Sample Qty (AQL) *</label><input type="number" id="oqc-sample" min="1" required></div>
+    </div>
+    <div class="field"><label>Check Status</label>
+      <select id="oqc-status"><option>Complete</option><option>Incomplete</option><option>Pending</option></select></div>
+
+    <div class="form-section-label">Defects (AQL ISO-2859-1 Level II)</div>
+    <div class="grid-3">
+      <div class="field"><label>Critical (0%)</label><input type="number" id="oqc-critical" min="0" value="0"></div>
+      <div class="field"><label>Major (0.65%)</label><input type="number" id="oqc-major" min="0" value="0"></div>
+      <div class="field"><label>Minor (1.5%)</label><input type="number" id="oqc-minor" min="0" value="0"></div>
+    </div>
+    <div class="result-strip">
+      <div class="result-item"><span>Total NG</span><b id="oqc-calc-ng">0</b></div>
+      <div class="result-item"><span>NG %</span><b id="oqc-calc-ngpct">0.00%</b></div>
+      <div class="result-item"><span>Result</span><b id="oqc-calc-result" class="pass">PASSED</b></div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>Fail Description</label><input type="text" id="oqc-faildesc" placeholder="If any"></div>
+      <div class="field"><label>Picture URL</label><input type="url" id="oqc-picture" placeholder="https://… (optional)"></div>
+    </div>
+    <div class="field"><label><span data-i18n="remarks">Remarks</span> <em>(optional)</em></label><input type="text" id="oqc-remarks"></div>
+
+    <button type="submit" class="btn-primary amber" data-i18n="submit_entry">Submit Entry</button>
+    <div id="oqc-save-msg" class="save-msg"></div>
+  </form>
+
+  <div class="history-block">
+    <div class="history-head"><h3>Recent OQC Entries</h3>
+      <button class="btn-sm" onclick="renderHistory('oqc')">Refresh</button></div>
+    <div class="table-wrap"><table><thead>
+      <tr><th>#</th><th>LOT</th><th>Insp Date</th><th>ODM</th><th>Material</th><th>Lot</th><th>Sample</th><th>NG</th><th>NG%</th><th>Result</th></tr>
+    </thead><tbody id="oqc-tbody"></tbody></table></div>
+  </div>
+
+  <div class="app-footer"><span>Akij Light Engineering Ltd.</span><button class="nav-chip" onclick="showLanding()">← Home</button></div>
+</div>
+
 <!-- ================= IPQC ENTRY ================= -->
 <div id="ipqc-app" class="entry-app">
   <div class="entry-header purple-hd">
     <div class="entry-brand"><span class="brand-logo sm purple">◉</span><span class="entry-title">IPQC — In-Process Quality Control</span></div>
     <div class="entry-nav">
       <button class="nav-chip teal" data-perm="iqc" onclick="showEntry('iqc')">IQC Entry</button>
+      <button class="nav-chip amber" data-perm="oqc" onclick="showEntry('oqc')">OQC Entry</button>
       <button class="nav-chip" data-perm="dashboard" onclick="openDashboard()" data-i18n="dashboard">Dashboard</button>
       <button class="nav-chip" id="btn-theme-ipqc" onclick="cycleTheme()"><span class="theme-icon">☀</span></button>
       <button class="nav-chip" onclick="cycleLang()"><span class="lang-icon">বাং</span></button>
@@ -291,6 +387,7 @@
     <div class="dash-top-right">
       <button class="dash-nav" onclick="showEntry('iqc')">IQC Entry</button>
       <button class="dash-nav purple" onclick="showEntry('ipqc')">IPQC Entry</button>
+      <button class="dash-nav amber" onclick="showEntry('oqc')">OQC Entry</button>
       <button class="dash-nav" id="btn-theme-dash" onclick="cycleTheme()"><span class="theme-icon">☀</span></button>
       <button class="dash-nav" onclick="cycleLang()"><span class="lang-icon">বাং</span></button>
       <button class="dash-nav" onclick="showLanding()">Home</button>
@@ -299,6 +396,7 @@
 
   <div class="dash-tabbar">
     <button class="tab active" data-tab="iqc">IQC Status</button>
+    <button class="tab" data-tab="oqc">OQC Status</button>
     <button class="tab" data-tab="ipqc">IPQC Quality</button>
   </div>
 
@@ -313,6 +411,18 @@
       <div class="chart-card wide"><div class="chart-head"><h3>Daily IQC Matrix</h3><button class="csv-btn" onclick="exportIQCCSV()">CSV</button></div>
         <div class="table-wrap"><table><thead><tr><th>Date</th><th>LOT</th><th>ODM</th><th>Material</th><th>Lot</th><th>Sample</th><th>NG</th><th>NG%</th><th>Result</th></tr></thead>
         <tbody id="iqc-matrix"></tbody></table></div></div>
+    </div>
+
+    <!-- OQC status -->
+    <div id="dash-oqc" class="dash-view">
+      <div class="kpi-row" id="oqc-kpis"></div>
+      <div class="charts-grid">
+        <div class="chart-card"><div class="chart-head"><h3>OQC Pass Rate Trend</h3></div><div id="chart-oqc-trend"></div></div>
+        <div class="chart-card"><div class="chart-head"><h3>OQC Pass / Fail (by month)</h3></div><div id="chart-oqc-donut"></div></div>
+      </div>
+      <div class="chart-card wide"><div class="chart-head"><h3>Daily OQC Matrix</h3><button class="csv-btn" onclick="exportOQCCSV()">CSV</button></div>
+        <div class="table-wrap"><table><thead><tr><th>Date</th><th>LOT</th><th>ODM</th><th>Material</th><th>Lot</th><th>Sample</th><th>NG</th><th>NG%</th><th>Result</th></tr></thead>
+        <tbody id="oqc-matrix"></tbody></table></div></div>
     </div>
 
     <!-- IPQC quality -->

@@ -1,9 +1,10 @@
 /* QC Pulse — IQC + IPQC data entry & analytics (local-first, optional Apps Script sync) */
-const IQC_KEY="iqcEntriesPulse", IPQC_KEY="ipqcEntriesPulse", SEC_KEY="ipqcSecPulse";
-const LS_IQC_EP="iqcEp", LS_IPQC_EP="ipqcEp";
+const IQC_KEY="iqcEntriesPulse", OQC_KEY="oqcEntriesPulse", IPQC_KEY="ipqcEntriesPulse", SEC_KEY="ipqcSecPulse";
+const LS_IQC_EP="iqcEp", LS_OQC_EP="oqcEp", LS_IPQC_EP="ipqcEp";
 // QC Pulse backend (bound to "IQC-IPQC dashboard" spreadsheet: master data + IQC_data/IPQC_data)
 const DATA_EP="https://script.google.com/macros/s/AKfycby6vu7ktKIG5EqjXVNGYaKpFXWI8Q9PRnzsxFCRZfkg36alJ6x0_AdLaNvRVSK8QBAeWA/exec";
 const getIqcEp=()=>localStorage.getItem(LS_IQC_EP)||DATA_EP;
+const getOqcEp=()=>localStorage.getItem(LS_OQC_EP)||DATA_EP;
 const getIpqcEp=()=>localStorage.getItem(LS_IPQC_EP)||DATA_EP;
 const getDataEp=()=>localStorage.getItem("dataEp")||DATA_EP;
 const $=id=>document.getElementById(id);
@@ -14,13 +15,13 @@ const todayStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMo
 function fmtDate(v){if(!v)return"";const p=String(v).split("-");if(p.length!==3)return v;
  const m=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];return p[2]+"-"+(m[parseInt(p[1],10)-1]||p[1])+"-"+p[0];}
 function monthForDate(d){if(!d)return"Sep-26";const p=d.split("-");const n=["","Jan-26","Feb-26","Mar-26","Apr-26","May-26","June-26","July-26","Aug-26","Sep-26","Oct-26","Nov-26","Dec-26"];return n[parseInt(p[1],10)]||"Sep-26";}
-function setToday(mod,which){if(mod==='iqc'){if(which==='rec')$("iqc-date-rec").value=todayStr();else $("iqc-date-ins").value=todayStr();}else{$("ipqc-date").value=todayStr();}}
+function setToday(mod,which){if(mod==='iqc'||mod==='oqc'){if(which==='rec')$(mod+"-date-rec").value=todayStr();else $(mod+"-date-ins").value=todayStr();}else{$("ipqc-date").value=todayStr();}}
 
-let iqcEntries=load(IQC_KEY,[]), ipqcEntries=load(IPQC_KEY,[]), secEntries=load(SEC_KEY,[]);
+let iqcEntries=load(IQC_KEY,[]), oqcEntries=load(OQC_KEY,[]), ipqcEntries=load(IPQC_KEY,[]), secEntries=load(SEC_KEY,[]);
 let themeIdx=0, charts={}, activeDefectIdx=0;
 
 // Master data (from sheet)
-let MASTER={items:[],materials:[],suppliers:[],defectTypes:[],aql:{codeToSize:{},ranges:[],ac:{}}};
+let MASTER={items:[],materials:[],oqcMaterials:[],suppliers:[],defectTypes:[],aql:{codeToSize:{},ranges:[],ac:{}}};
 let masterReady=false;
 const DEFECT_TYPES=["Connection Problem","Circuit Damage","Scratch","Spot","Improper Print","Extra Metal","Improper Fitting","Color Defect","Metal Parts Missing","Nut loose","Dirt/Uncleanness"];
 const ODM_LIST=["Bhuiyan Poly Packs","Holopuls Techno","Joarder Printers","Metal Zone","Moon Corporation","Nezam Trading","Print Source","Priyanti Engineering","Royal Print Pack","SA EPS Insulation","Saadi Engineering","Taiji International","Unique Trade Corporation","United Packaging","Zara Printing & Packaging"];
@@ -49,7 +50,7 @@ async function loadMaster(){
   try{
     const d=await apiGet("master");
     if(d && d.status==="ok" && (d.items||[]).length){
-      MASTER={items:d.items||[],materials:d.materials||[],suppliers:d.suppliers||[],
+      MASTER={items:d.items||[],materials:d.materials||[],oqcMaterials:d.oqcMaterials||[],suppliers:d.suppliers||[],
         defectTypes:d.defectTypes||[],aql:d.aql||{codeToSize:{},ranges:[],ac:{}},auth:d.auth||null};
       masterReady=true;
       if(d.auth && authOk(d.auth)) cacheAuth(d.auth);
@@ -77,7 +78,7 @@ function setMasterStatus(state){
 
 /* ============ Authorization (restricted data entry) ============ */
 const AUTH_KEY="qcAuthUser", AUTH_CACHE="authCache";
-let AUTH={email:"",perms:{iqc:false,entry:false,dashboard:false,fpy:false}};
+let AUTH={email:"",perms:{iqc:false,oqc:false,entry:false,dashboard:false,fpy:false}};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function can(p){return !!AUTH.perms[p];}
 function cacheAuth(a){try{localStorage.setItem(AUTH_CACHE,JSON.stringify(a));}catch(e){}}
@@ -103,9 +104,11 @@ async function fetchAuthLists(){
 function permsFor(email, lists){
   const e=String(email||"").trim().toLowerCase();
   const has=k=>(lists&&lists[k]?lists[k]:[]).indexOf(e)>=0;
-  return { iqc:has("iqc"), entry:has("entry"), dashboard:has("dashboard"), fpy:has("fpy") };
+  const oqcList=(lists&&lists.oqc)?lists.oqc:[];
+  const oqc=has("oqc") || (!oqcList.length && (has("iqc")||has("entry")));
+  return { iqc:has("iqc"), oqc, entry:has("entry"), dashboard:has("dashboard"), fpy:has("fpy") };
 }
-function anyPerm(p){return p.iqc||p.entry||p.dashboard||p.fpy;}
+function anyPerm(p){return p.iqc||p.oqc||p.entry||p.dashboard||p.fpy;}
 async function submitAuth(){
   const email=$("auth-email").value.trim().toLowerCase();
   const msg=$("auth-msg"), btn=$("auth-btn"), retry=$("auth-retry"), req=$("auth-request");
@@ -152,7 +155,7 @@ function showAuthGate(){
 function hideAuthGate(){ $("auth-gate").classList.add("hidden"); }
 function signOut(){
   try{ localStorage.removeItem(AUTH_KEY); }catch(e){}
-  AUTH={email:"",perms:{iqc:false,entry:false,dashboard:false,fpy:false}};
+  AUTH={email:"",perms:{iqc:false,oqc:false,entry:false,dashboard:false,fpy:false}};
   applyPermissions(); refreshUserChip(); showLanding(); showAuthGate();
 }
 function applyPermissions(){
@@ -185,7 +188,32 @@ async function bootstrapAuth(){
   fetchAuthLists().catch(()=>{});   // warm the auth cache so Continue is instant
 }
 
-function populateAll(){ populateIQC(); populateIPQC(); }
+function populateAll(){ populateIQC(); populateOQC(); populateIPQC(); }
+
+function populateOQC(){
+  const odm=$("oqc-odm"), code=$("oqc-code");
+  if(!odm||!code) return;
+  const list=MASTER.oqcMaterials.length?MASTER.oqcMaterials:MASTER.materials;
+  const mdl=$("oqc-material-list");
+  if(mdl) mdl.innerHTML=list.map(m=>`<option value="${esc(m.code)}">${esc(m.desc)}</option>`).join("");
+}
+function oqcMat(code){
+  const c=String(code||"").trim();
+  return MASTER.oqcMaterials.find(x=>String(x.code)===c) || MASTER.materials.find(x=>String(x.code)===c);
+}
+function oqcMaterialChanged(){
+  const m=oqcMat($("oqc-code").value);
+  if(m){ $("oqc-desc").value=m.desc||""; $("oqc-pg").value=m.pg||""; $("oqc-cat").value=m.cat||""; $("oqc-level").value=m.level||"II"; }
+  else { $("oqc-desc").value=""; $("oqc-pg").value=""; $("oqc-cat").value=""; $("oqc-level").value=""; }
+  oqcAutoSample();
+}
+function oqcAutoSample(){
+  const lot=parseInt($("oqc-lotsize").value)||0;
+  const level=$("oqc-level").value||"II";
+  if(!lot||!masterReady){return;}
+  const r=(MASTER.aql.ranges||[]).find(x=>lot>=x.min && lot<=x.max);
+  if(r){ const letter=r[level]||r["II"]; const size=(MASTER.aql.codeToSize||{})[letter]; if(size){ $("oqc-sample").value=size; oqcCompute(); } }
+}
 
 function populateIQC(){
   const odm=$("iqc-odm"), code=$("iqc-code");
@@ -274,7 +302,7 @@ function renderDefectRows(){
 }
 
 /* ============ View routing ============ */
-function hideAll(){["landing-view","chooser-view","iqc-app","ipqc-app","dashboard-app"].forEach(id=>$(id).classList.remove("active"));}
+function hideAll(){["landing-view","chooser-view","iqc-app","oqc-app","ipqc-app","dashboard-app"].forEach(id=>$(id).classList.remove("active"));}
 function showLanding(){hideAll();$("landing-view").classList.add("active");}
 function openChooser(){hideAll();$("chooser-view").classList.add("active");}
 function showEntry(which){hideAll();$(which+"-app").classList.add("active");renderHistory(which);}
@@ -286,12 +314,18 @@ async function loadRecords(){
       lotSize:parseInt(r[11])||0,sample:parseInt(r[12])||0,totalNG:parseInt(r[17])||0,result:r[18],ngPct:(parseFloat(r[19])||0)/100})); }
   }catch(e){}
   try{
+    const d3=await apiGet("oqc");
+    if(d3&&d3.rows){ oqcEntries=d3.rows.map(r=>({lot:r[2],dateRec:r[3],dateIns:r[4],odm:r[5],code:r[6],desc:r[7],
+      lotSize:parseInt(r[11])||0,sample:parseInt(r[12])||0,totalNG:parseInt(r[17])||0,result:r[18],ngPct:(parseFloat(r[19])||0)/100})); }
+  }catch(e){}
+  try{
     const d2=await apiGet("ipqc");
     if(d2&&d2.rows){ ipqcEntries=d2.rows.map(r=>{ let defs=[]; try{defs=JSON.parse(r[16]||"[]")}catch(e){}
       return {date:r[2],section:r[3],line:r[4],hour:r[5],code:r[6],item:r[7],checked:parseFloat(r[10])||0,
         passed:parseFloat(r[11])||0,failed:parseFloat(r[13])||0,defectTotal:parseFloat(r[14])||0,fpy:parseFloat(r[15])||0,defects:defs}; }); }
   }catch(e){}
-  if($("dashboard-app").classList.contains("active")){ destroyCharts(); const tab=document.querySelector(".dash-tabbar .tab.active"); if(tab&&tab.dataset.tab==="ipqc") renderIPQC(); else renderIQC(); }
+  if($("dashboard-app").classList.contains("active")){ destroyCharts(); const tab=document.querySelector(".dash-tabbar .tab.active"); const tb=tab?tab.dataset.tab:"iqc";
+    if(tb==="ipqc") renderIPQC(); else if(tb==="oqc") renderOQC(); else renderIQC(); }
 }
 
 /* ============ Theme / language ============ */
@@ -353,6 +387,44 @@ async function iqcSubmit(e){e.preventDefault();
    else { msg.textContent="Saved & synced to sheet ✓";msg.className="save-msg ok"; } }
  catch(err){ msg.textContent="Saved locally (sync pending)";msg.className="save-msg ok"; }
  toast("IQC entry saved","success");iqcReset();}
+
+/* ============ OQC logic (mirrors IQC, AQL from AQL_Tables) ============ */
+function oqcCompute(){const sample=parseFloat($("oqc-sample").value)||0;
+ const cr=parseInt($("oqc-critical").value)||0,ma=parseInt($("oqc-major").value)||0,mi=parseInt($("oqc-minor").value)||0;
+ const total=cr+ma+mi;const ng=sample>0?total/sample:0;
+ $("oqc-calc-ng").textContent=total;$("oqc-calc-ngpct").textContent=(ng*100).toFixed(2)+"%";
+ const maP=sample>0?ma/sample:0,miP=sample>0?mi/sample:0;
+ let pass=true;if(cr>0)pass=false;else if(maP>0.0065)pass=false;else if(miP>0.015)pass=false;
+ const el=$("oqc-calc-result");el.textContent=pass?"PASSED":"FAILED";el.className=pass?"pass":"fail";
+ return{total,ng,pass};}
+function oqcReset(){$("oqc-form").reset();$("oqc-date-rec").value=todayStr();$("oqc-date-ins").value=todayStr();
+ $("oqc-critical").value=0;$("oqc-major").value=0;$("oqc-minor").value=0;oqcCompute();}
+async function oqcSubmit(e){e.preventDefault();
+ if(!can("oqc")){toast("You are not authorized to enter OQC data.","error");return;}
+ const calc=oqcCompute();
+ const lot=$("oqc-lot").value.trim(), dateRec=$("oqc-date-rec").value, dateIns=$("oqc-date-ins").value;
+ const odmVal=$("oqc-odm").value.trim();
+ const sup=MASTER.suppliers.find(s=>String(s.code)===String(odmVal) || s.name===odmVal);
+ const odmCode=sup?String(sup.code):(/^\d+$/.test(odmVal)?odmVal:"");
+ const odmName=sup?sup.name:odmVal;
+ const code=$("oqc-code").value.trim(), desc=$("oqc-desc").value.trim();
+ const pg=$("oqc-pg").value, cat=$("oqc-cat").value, level=$("oqc-level").value;
+ const lotSize=parseInt($("oqc-lotsize").value)||0, sample=parseInt($("oqc-sample").value)||0;
+ const status=$("oqc-status").value, cr=parseInt($("oqc-critical").value)||0, ma=parseInt($("oqc-major").value)||0, mi=parseInt($("oqc-minor").value)||0;
+ const failDesc=$("oqc-faildesc").value.trim(), picture=$("oqc-picture").value.trim(), remarks=$("oqc-remarks").value.trim();
+ if(!lot||!dateRec||!odmVal||!code||lotSize<=0||sample<=0){toast("Please fill all OQC required fields.","error");return;}
+ const rec={module:"oqc",lot,dateRec,dateIns,odmCode,odm:odmName,code,desc,pg,cat,level,lotSize,sample,status,critical:cr,major:ma,minor:mi,
+   totalNG:calc.total,ngPct:calc.ng,result:calc.pass?"PASSED":"FAILED",failDesc,picture,remarks,ts:new Date().toISOString()};
+ oqcEntries.push(rec);save(OQC_KEY,oqcEntries);renderHistory("oqc");
+ const now=new Date().toLocaleString("en-GB");
+ const row=[now,"",lot,dateRec,dateIns,odmCode,odmName,code,desc,pg,cat,level,lotSize,sample,status,cr,ma,mi,calc.total,
+   calc.pass?"PASSED":"FAILED",(calc.ng*100).toFixed(2),failDesc,picture,remarks];
+ const msg=$("oqc-save-msg");
+ try{ const r=await postEp(getOqcEp(),{action:"oqc",email:AUTH.email,data:row});
+   if(r && r.status==="error"){ msg.textContent="Not saved: "+(r.message||"server error");msg.className="save-msg err"; }
+   else { msg.textContent="Saved & synced to sheet ✓";msg.className="save-msg ok"; } }
+ catch(err){ msg.textContent="Saved locally (sync pending)";msg.className="save-msg ok"; }
+ toast("OQC entry saved","success");oqcReset();}
 
 /* ============ IPQC logic ============ */
 function ipqcMode(mode){const line=mode==="line";$("ipqc-form").classList.toggle("hidden",!line);
@@ -428,6 +500,12 @@ function renderHistory(mod){if(mod==="iqc"){const tb=$("iqc-tbody");tb.innerHTML
   tr.innerHTML=`<td>${iqcEntries.length-i}</td><td>${esc(e.lot)}</td><td>${fmtDate(e.dateIns)}</td><td>${esc(e.odm)}</td>
    <td>${esc(e.desc)}</td><td>${e.lotSize}</td><td>${e.sample}</td><td>${e.totalNG||0}</td><td>${(e.ngPct!=null?(e.ngPct*100).toFixed(2)+"%":"")}</td>
    <td><span class="${e.result==="PASSED"?"pass":"fail"}">${e.result}</span></td>`;tb.appendChild(tr);});}
+ else if(mod==="oqc"){const tb=$("oqc-tbody");tb.innerHTML="";
+  const rows=oqcEntries.slice().reverse().slice(0,40);if(!rows.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;color:#94a3b8">No entries yet</td></tr>';return;}
+  rows.forEach((e,i)=>{const tr=document.createElement("tr");
+   tr.innerHTML=`<td>${oqcEntries.length-i}</td><td>${esc(e.lot)}</td><td>${fmtDate(e.dateIns)}</td><td>${esc(e.odm)}</td>
+    <td>${esc(e.desc)}</td><td>${e.lotSize}</td><td>${e.sample}</td><td>${e.totalNG||0}</td><td>${(e.ngPct!=null?(e.ngPct*100).toFixed(2)+"%":"")}</td>
+    <td><span class="${e.result==="PASSED"?"pass":"fail"}">${e.result}</span></td>`;tb.appendChild(tr);});}
  else{const tb=$("ipqc-tbody");tb.innerHTML="";
   const rows=ipqcEntries.slice().reverse().slice(0,40);if(!rows.length){tb.innerHTML='<tr><td colspan="12" style="text-align:center;color:#94a3b8">No entries yet</td></tr>';return;}
   rows.forEach((e,i)=>{const tr=document.createElement("tr");const cls=(e.fpy!=null&&e.fpy>=95)?"pass":"fail";
@@ -454,11 +532,11 @@ function txtColor(){return isDark()?"#e2e8f0":"#374151";}
 function destroyCharts(){Object.values(charts).forEach(c=>{try{c&&c.destroy();}catch(e){}});charts={};}
 function rerenderCharts(){if($("dashboard-app").classList.contains("active"))renderDashboard();}
 function switchDashTab(tab){document.querySelectorAll(".dash-tabbar .tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
- $("dash-iqc").classList.toggle("active",tab==="iqc");$("dash-ipqc").classList.toggle("active",tab==="ipqc");
- if(tab==="iqc"){destroyCharts();renderIQC();}else{destroyCharts();renderIPQC();}}
+ $("dash-iqc").classList.toggle("active",tab==="iqc");$("dash-oqc").classList.toggle("active",tab==="oqc");$("dash-ipqc").classList.toggle("active",tab==="ipqc");
+ destroyCharts();if(tab==="iqc")renderIQC();else if(tab==="oqc")renderOQC();else renderIPQC();}
 
 function renderDashboard(){document.querySelectorAll(".dash-tabbar .tab").forEach(b=>b.classList.toggle("active",b.dataset.tab==="iqc"));
- $("dash-iqc").classList.add("active");$("dash-ipqc").classList.remove("active");
+ $("dash-iqc").classList.add("active");$("dash-oqc").classList.remove("active");$("dash-ipqc").classList.remove("active");
  destroyCharts();renderIQC();}
 
 function kpi(label,val,sub,color){return `<div class="kpi-card"><div class="kpi-label">${label}</div>
@@ -504,6 +582,49 @@ function renderIQC(){const k=$("iqc-kpis");const total=iqcEntries.length;
  // matrix table
  const m=$("iqc-matrix");m.innerHTML="";
  const rows=iqcEntries.slice().reverse().slice(0,60);if(!rows.length){m.innerHTML='<tr><td colspan="9" style="text-align:center;color:#94a3b8">No IQC entries yet</td></tr>';return;}
+ rows.forEach(e=>{const tr=document.createElement("tr");
+  tr.innerHTML=`<td>${fmtDate(e.dateIns)}</td><td>${esc(e.lot)}</td><td>${esc(e.odm)}</td><td>${esc(e.desc)}</td>
+   <td>${e.lotSize}</td><td>${e.sample}</td><td>${e.totalNG||0}</td><td>${e.ngPct!=null?(e.ngPct*100).toFixed(2)+"%":""}</td>
+   <td><span class="${e.result==="PASSED"?"pass":"fail"}">${e.result}</span></td>`;m.appendChild(tr);});}
+
+function renderOQC(){const k=$("oqc-kpis");const total=oqcEntries.length;
+ const passed=oqcEntries.filter(e=>e.result==="PASSED").length;
+ const totalQty=oqcEntries.reduce((a,e)=>a+(parseInt(e.lotSize)||0),0);
+ const totalNG=oqcEntries.reduce((a,e)=>a+(e.totalNG||0),0);
+ const rate=total?passed/total*100:0;
+ const rateColor=rate>=95?"ok":(rate>=85?"warn":"bad");
+ k.innerHTML=kpi("Total Lots",total.toLocaleString(),"OQC entries",isDark()?"teal":"")+
+  kpi("Passed",passed.toLocaleString(),(total-passed)+" failed","ok")+
+  kpi("Pass Rate",total?rate.toFixed(1)+"%":"—",rate>=95?"Above target":"Below 95%",rateColor)+
+  kpi("Total Qty",totalQty.toLocaleString(),"pcs inspected")+
+  kpi("Total NG",totalNG.toLocaleString(),"defective parts","bad");
+ const byDate={};oqcEntries.forEach(e=>{const d=e.dateIns||"?";if(!byDate[d])byDate[d]={t:0,p:0};
+  byDate[d].t++;byDate[d].p+=e.result==="PASSED"?1:0;});
+ const dates=Object.keys(byDate).sort().slice(-14);
+ const trendOpt={chart:{type:"area",height:260,fontFamily:"Inter",toolbar:{show:false},animations:{enabled:false}},
+  series:[{name:"Pass Rate %",data:dates.map(d=>byDate[d].t?Math.round(byDate[d].p/byDate[d].t*1000)/10:0)}],
+  colors:["#b45309"],stroke:{curve:"smooth",width:3},
+  fill:{type:"gradient",gradient:{opacityFrom:.35,opacityTo:.05}},
+  xaxis:{categories:dates.map(fmtDate),labels:{style:{colors:txtColor()}}},
+  yaxis:{min:0,max:100,labels:{style:{colors:"#6B7280"},formatter:v=>v+"%"}},
+  grid:{borderColor:isDark()?"#334155":"#e2e8f0"},
+  dataLabels:{enabled:false},
+  annotations:{yaxis:[{y:95,borderColor:"#10B981",strokeDashArray:4,label:{text:"Target 95%",style:{background:"#10B981",color:"#fff",fontSize:"10px"}}}]},
+  tooltip:{theme:isDark()?"dark":"light"}};
+ if(charts.oqcTrend)charts.oqcTrend.destroy();
+ charts.oqcTrend=new ApexCharts($("chart-oqc-trend"),trendOpt);charts.oqcTrend.render();
+ const passC=passed,failC=total-passed;
+ const donutOpt={chart:{type:"donut",height:260,animations:{enabled:false}},
+  series:[passC,failC],labels:["Passed","Failed"],
+  colors:["#10B981","#EF4444"],
+  legend:{position:"bottom",labels:{colors:txtColor()},fontSize:"12px"},
+  dataLabels:{enabled:true,formatter:(v,o)=>o.w.globals.series[o.seriesIndex]},
+  plotOptions:{pie:{donut:{size:"70%"}}},
+  tooltip:{theme:isDark()?"dark":"light"}};
+ if(charts.oqcDonut)charts.oqcDonut.destroy();
+ charts.oqcDonut=new ApexCharts($("chart-oqc-donut"),donutOpt);charts.oqcDonut.render();
+ const m=$("oqc-matrix");m.innerHTML="";
+ const rows=oqcEntries.slice().reverse().slice(0,60);if(!rows.length){m.innerHTML='<tr><td colspan="9" style="text-align:center;color:#94a3b8">No OQC entries yet</td></tr>';return;}
  rows.forEach(e=>{const tr=document.createElement("tr");
   tr.innerHTML=`<td>${fmtDate(e.dateIns)}</td><td>${esc(e.lot)}</td><td>${esc(e.odm)}</td><td>${esc(e.desc)}</td>
    <td>${e.lotSize}</td><td>${e.sample}</td><td>${e.totalNG||0}</td><td>${e.ngPct!=null?(e.ngPct*100).toFixed(2)+"%":""}</td>
@@ -591,6 +712,8 @@ function exportIQCCSV(){downloadCSV("IQC_Matrix.csv",[["Date","LOT","ODM","Mater
  .concat(iqcEntries.map(e=>[fmtDate(e.dateIns),e.lot,e.odm,e.desc,e.lotSize,e.sample,e.totalNG||0,(e.ngPct!=null?(e.ngPct*100).toFixed(2)+"%":""),e.result])));}
 function exportIPQCCSV(){downloadCSV("IPQC_Quality.csv",[["Section","Line","Item","Checked","Passed","Defects","FPY%"]]
  .concat(ipqcEntries.map(e=>[e.section,e.line,e.item,e.checked,e.passed,e.defectTotal||0,e.fpy!=null?e.fpy.toFixed(1):""])));}
+function exportOQCCSV(){downloadCSV("OQC_Matrix.csv",[["Date","LOT","ODM","Material","Lot","Sample","NG","NG%","Result"]]
+ .concat(oqcEntries.map(e=>[fmtDate(e.dateIns),e.lot,e.odm,e.desc,e.lotSize,e.sample,e.totalNG||0,(e.ngPct!=null?(e.ngPct*100).toFixed(2)+"%":""),e.result])));}
 
 /* ============ Init ============ */
 function init(){
@@ -600,6 +723,12 @@ function init(){
  $("iqc-code").addEventListener("input",iqcMaterialChanged);
  $("iqc-lotsize").addEventListener("input",iqcAutoSample);
  $("iqc-form").addEventListener("submit",iqcSubmit);
+ $("oqc-date-rec").value=todayStr();$("oqc-date-ins").value=todayStr();
+ ["oqc-sample","oqc-critical","oqc-major","oqc-minor"].forEach(id=>$(id).addEventListener("input",oqcCompute));
+ $("oqc-code").addEventListener("change",oqcMaterialChanged);
+ $("oqc-code").addEventListener("input",oqcMaterialChanged);
+ $("oqc-lotsize").addEventListener("input",oqcAutoSample);
+ $("oqc-form").addEventListener("submit",oqcSubmit);
  document.querySelectorAll("#ipqc-mode-toggle .pill").forEach(b=>b.addEventListener("click",()=>ipqcMode(b.dataset.mode)));
  $("ipqc-section").addEventListener("change",ipqcSectionChanged);
  $("ipqc-line").addEventListener("change",ipqcLineChanged);
@@ -610,7 +739,7 @@ function init(){
  $("ipqc-section-form").addEventListener("submit",ipqcSecSubmit);
  ["ipqc-sec-checked","ipqc-sec-passed"].forEach(id=>$(id).addEventListener("input",ipqcSecCompute));
  document.querySelectorAll(".dash-tabbar .tab").forEach(b=>b.addEventListener("click",()=>switchDashTab(b.dataset.tab)));
- iqcReset();ipqcReset();ipqcSecCompute();addDefectRow();
+ iqcReset();oqcReset();ipqcReset();ipqcSecCompute();addDefectRow();
  applyI18n();
  loadMaster();
  bootstrapAuth();
