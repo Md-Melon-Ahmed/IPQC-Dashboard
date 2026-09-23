@@ -708,11 +708,11 @@ function renderIQC(){const k=$("iqc-kpis");const E=filterDash(iqcEntries,"dateIn
   plotOptions:{pie:{donut:{size:"70%"}}},
   tooltip:{theme:isDark()?"dark":"light"}};
  charts.iqcDonut=new ApexCharts($("chart-iqc-donut"),donutOpt);charts.iqcDonut.render();
- // bar: failed % by ODM (failed qty / received qty)
- const byOdm={};E.forEach(e=>{const o=(e.odm||"—").trim()||"—";
-  if(!byOdm[o])byOdm[o]={ng:0,qty:0};
-  byOdm[o].ng+=e.totalNG||0;byOdm[o].qty+=parseInt(e.lotSize)||0;});
- const odmArr=Object.entries(byOdm).map(([o,v])=>[o,v.qty?v.ng/v.qty*100:0,v.ng,v.qty]).sort((a,b)=>b[1]-a[1]).slice(0,16);
+ // bar: failed % by ODM = (failed lot qty / received qty) * 100
+ const byOdm={};E.forEach(e=>{const o=(e.odm||"—").trim()||"—";const q=parseInt(e.lotSize)||0;
+  if(!byOdm[o])byOdm[o]={fail:0,recv:0};
+  byOdm[o].recv+=q;if(e.result==="FAILED")byOdm[o].fail+=q;});
+ const odmArr=Object.entries(byOdm).map(([o,v])=>[o,v.recv?v.fail/v.recv*100:0,v.fail,v.recv]).sort((a,b)=>b[1]-a[1]).slice(0,16);
  const odmOpt={chart:{type:"bar",height:300,fontFamily:"Inter",toolbar:{show:false},animations:{enabled:false}},
   series:[{name:"Failed %",data:odmArr.map(x=>Math.round(x[1]*100)/100)}],colors:["#EF4444"],
   plotOptions:{bar:{borderRadius:4,columnWidth:"55%"}},
