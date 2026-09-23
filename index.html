@@ -409,6 +409,12 @@
     <button class="tab" data-tab="ipqc">IPQC Quality</button>
   </div>
 
+  <div class="dash-filters">
+    <select id="dash-month" onchange="applyDashFilters()"><option value="">All months</option></select>
+    <input type="date" id="dash-date" onchange="applyDashFilters()">
+    <button type="button" class="tiny-pill" onclick="clearDashFilters()">Clear</button>
+  </div>
+
   <div class="dash-scroll">
     <!-- IQC summary -->
     <div id="dash-iqc" class="dash-view active">

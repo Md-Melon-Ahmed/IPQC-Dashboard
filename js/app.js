@@ -36,7 +36,22 @@ function fillMonthSelects(){
   ["iqc-month","oqc-month","ipqc-month"].forEach(id=>{const el=$(id);if(!el)return;const prev=el.value;
     el.innerHTML=list.map(m=>`<option>${m}</option>`).join("");
     el.value=(list.includes(prev)?prev:(list.includes(cur)?cur:list[0]))||"";});
+  const dm=$("dash-month");
+  if(dm){const prev=dm.value;dm.innerHTML='<option value="">All months</option>'+list.map(m=>`<option>${m}</option>`).join("");if(list.includes(prev))dm.value=prev;}
 }
+function strDate(v){return String(v==null?"":v).slice(0,10);}
+function filterDash(list,dateKey){
+  return (list||[]).filter(e=>{
+    const d=strDate(e[dateKey]);
+    if(dashDate) return d===dashDate;
+    if(dashMonth) return d?monthLabel(d)===dashMonth:false;
+    return true;
+  });
+}
+function clearDashFilters(){const m=$("dash-month"),d=$("dash-date");if(m)m.value="";if(d)d.value="";applyDashFilters();}
+function applyDashFilters(){const m=$("dash-month"),d=$("dash-date");dashMonth=m?m.value:"";dashDate=d?d.value:"";
+  const tab=document.querySelector(".dash-tabbar .tab.active");const tb=tab?tab.dataset.tab:"iqc";
+  destroyCharts();if(tb==="ipqc")renderIPQC();else if(tb==="oqc")renderOQC();else renderIQC();}
 function setToday(mod,which){if(mod==='iqc'||mod==='oqc'){if(which==='rec')$(mod+"-date-rec").value=todayStr();else $(mod+"-date-ins").value=todayStr();}else{$("ipqc-date").value=todayStr();}}
 // Picture attach from gallery/camera: keep up to 4 images as a JSON array on the hidden field
 function picList(which){try{const v=JSON.parse($(which+"-picture").value||"[]");return Array.isArray(v)?v:[];}catch(e){return []}}
@@ -97,6 +112,7 @@ function showPicEntry(mod,i){const arr=mod==="iqc"?iqcEntries:oqcEntries;const e
 
 let iqcEntries=load(IQC_KEY,[]), oqcEntries=load(OQC_KEY,[]), ipqcEntries=load(IPQC_KEY,[]), secEntries=load(SEC_KEY,[]);
 let themeIdx=0, charts={}, activeDefectIdx=0;
+let dashMonth="", dashDate="";
 
 // Master data (from sheet)
 let MASTER={items:[],materials:[],oqcMaterials:[],suppliers:[],defectTypes:[],aql:{codeToSize:{},ranges:[],ac:{}}};
@@ -646,19 +662,21 @@ function renderDashboard(){document.querySelectorAll(".dash-tabbar .tab").forEac
 function kpi(label,val,sub,color){return `<div class="kpi-card"><div class="kpi-label">${label}</div>
  <div class="kpi-value ${color||""}">${val}</div>${sub?`<div class="kpi-sub">${sub}</div>`:""}</div>`;}
 
-function renderIQC(){const k=$("iqc-kpis");const total=iqcEntries.length;
- const passed=iqcEntries.filter(e=>e.result==="PASSED").length;
- const totalQty=iqcEntries.reduce((a,e)=>a+(parseInt(e.lotSize)||0),0);
- const totalNG=iqcEntries.reduce((a,e)=>a+(e.totalNG||0),0);
+function renderIQC(){const k=$("iqc-kpis");const E=filterDash(iqcEntries,"dateIns");const total=E.length;
+ const passed=E.filter(e=>e.result==="PASSED").length;
+ const totalQty=E.reduce((a,e)=>a+(parseInt(e.lotSize)||0),0);
+ const totalNG=E.reduce((a,e)=>a+(e.totalNG||0),0);
  const rate=total?passed/total*100:0;
+ const defRate=totalQty?totalNG/totalQty*100:0;
  const rateColor=rate>=95?"ok":(rate>=85?"warn":"bad");
  k.innerHTML=kpi("Total Lots",total.toLocaleString(),"IQC entries",isDark()?"teal":"")+
   kpi("Passed",passed.toLocaleString(),(total-passed)+" failed","ok")+
   kpi("Pass Rate",total?rate.toFixed(1)+"%":"—",rate>=95?"Above target":"Below 95%",rateColor)+
-  kpi("Total Qty",totalQty.toLocaleString(),"pcs inspected")+
-  kpi("Total NG",totalNG.toLocaleString(),"defective parts","bad");
+  kpi("Received Qty",totalQty.toLocaleString(),"pcs received")+
+  kpi("Failed Qty",totalNG.toLocaleString(),"defective parts","bad")+
+  kpi("Defect Rate",totalQty?defRate.toFixed(2)+"%":"—","Failed / Received");
  // trend by date
- const byDate={};iqcEntries.forEach(e=>{const d=e.dateIns||"?";if(!byDate[d])byDate[d]={t:0,p:0};
+ const byDate={};E.forEach(e=>{const d=strDate(e.dateIns)||"?";if(!byDate[d])byDate[d]={t:0,p:0};
   byDate[d].t++;byDate[d].p+=e.result==="PASSED"?1:0;});
  const dates=Object.keys(byDate).sort().slice(-14);
  const trendOpt={chart:{type:"area",height:260,fontFamily:"Inter",toolbar:{show:false},animations:{enabled:false}},
@@ -684,9 +702,9 @@ function renderIQC(){const k=$("iqc-kpis");const total=iqcEntries.length;
   tooltip:{theme:isDark()?"dark":"light"}};
  charts.iqcDonut=new ApexCharts($("chart-iqc-donut"),donutOpt);charts.iqcDonut.render();
  // bar: based on no. of item (by ODM)
- const byOdm={};iqcEntries.forEach(e=>{const o=(e.odm||"—").trim()||"—";byOdm[o]=(byOdm[o]||0)+1;});
+ const byOdm={};E.forEach(e=>{const o=(e.odm||"—").trim()||"—";byOdm[o]=(byOdm[o]||0)+1;});
  const odmArr=Object.entries(byOdm).sort((a,b)=>b[1]-a[1]).slice(0,16);
- const odmTot=iqcEntries.length||0;
+ const odmTot=E.length||0;
  const odmOpt={chart:{type:"bar",height:300,fontFamily:"Inter",toolbar:{show:false},animations:{enabled:false}},
   series:[{name:"No. of Item",data:odmArr.map(x=>x[1])}],colors:["#EF4444"],
   plotOptions:{bar:{borderRadius:4,columnWidth:"55%"}},
@@ -700,24 +718,26 @@ function renderIQC(){const k=$("iqc-kpis");const total=iqcEntries.length;
  charts.iqcOdm=new ApexCharts($("chart-iqc-odm"),odmOpt);charts.iqcOdm.render();
  // matrix table
  const m=$("iqc-matrix");m.innerHTML="";
- const rows=iqcEntries.slice().reverse().slice(0,60);if(!rows.length){m.innerHTML='<tr><td colspan="9" style="text-align:center;color:#94a3b8">No IQC entries yet</td></tr>';return;}
+ const rows=E.slice().reverse().slice(0,60);if(!rows.length){m.innerHTML='<tr><td colspan="9" style="text-align:center;color:#94a3b8">No IQC entries yet</td></tr>';return;}
  rows.forEach(e=>{const tr=document.createElement("tr");
   tr.innerHTML=`<td>${fmtDate(e.dateIns)}</td><td>${esc(e.lot)}</td><td>${esc(e.odm)}</td><td>${esc(e.desc)}</td>
    <td>${e.lotSize}</td><td>${e.sample}</td><td>${e.totalNG||0}</td><td>${e.ngPct!=null?(e.ngPct*100).toFixed(2)+"%":""}</td>
    <td><span class="${e.result==="PASSED"?"pass":"fail"}">${e.result}</span></td>`;m.appendChild(tr);});}
 
-function renderOQC(){const k=$("oqc-kpis");const total=oqcEntries.length;
- const passed=oqcEntries.filter(e=>e.result==="PASSED").length;
- const totalQty=oqcEntries.reduce((a,e)=>a+(parseInt(e.lotSize)||0),0);
- const totalNG=oqcEntries.reduce((a,e)=>a+(e.totalNG||0),0);
+function renderOQC(){const k=$("oqc-kpis");const E=filterDash(oqcEntries,"dateIns");const total=E.length;
+ const passed=E.filter(e=>e.result==="PASSED").length;
+ const totalQty=E.reduce((a,e)=>a+(parseInt(e.lotSize)||0),0);
+ const totalNG=E.reduce((a,e)=>a+(e.totalNG||0),0);
  const rate=total?passed/total*100:0;
+ const defRate=totalQty?totalNG/totalQty*100:0;
  const rateColor=rate>=95?"ok":(rate>=85?"warn":"bad");
  k.innerHTML=kpi("Total Lots",total.toLocaleString(),"OQC entries",isDark()?"teal":"")+
   kpi("Passed",passed.toLocaleString(),(total-passed)+" failed","ok")+
   kpi("Pass Rate",total?rate.toFixed(1)+"%":"—",rate>=95?"Above target":"Below 95%",rateColor)+
-  kpi("Total Qty",totalQty.toLocaleString(),"pcs inspected")+
-  kpi("Total NG",totalNG.toLocaleString(),"defective parts","bad");
- const byDate={};oqcEntries.forEach(e=>{const d=e.dateIns||"?";if(!byDate[d])byDate[d]={t:0,p:0};
+  kpi("Received Qty",totalQty.toLocaleString(),"pcs received")+
+  kpi("Failed Qty",totalNG.toLocaleString(),"defective parts","bad")+
+  kpi("Defect Rate",totalQty?defRate.toFixed(2)+"%":"—","Failed / Received");
+ const byDate={};E.forEach(e=>{const d=strDate(e.dateIns)||"?";if(!byDate[d])byDate[d]={t:0,p:0};
   byDate[d].t++;byDate[d].p+=e.result==="PASSED"?1:0;});
  const dates=Object.keys(byDate).sort().slice(-14);
  const trendOpt={chart:{type:"area",height:260,fontFamily:"Inter",toolbar:{show:false},animations:{enabled:false}},
@@ -743,25 +763,31 @@ function renderOQC(){const k=$("oqc-kpis");const total=oqcEntries.length;
  if(charts.oqcDonut)charts.oqcDonut.destroy();
  charts.oqcDonut=new ApexCharts($("chart-oqc-donut"),donutOpt);charts.oqcDonut.render();
  const m=$("oqc-matrix");m.innerHTML="";
- const rows=oqcEntries.slice().reverse().slice(0,60);if(!rows.length){m.innerHTML='<tr><td colspan="9" style="text-align:center;color:#94a3b8">No OQC entries yet</td></tr>';return;}
+ const rows=E.slice().reverse().slice(0,60);if(!rows.length){m.innerHTML='<tr><td colspan="9" style="text-align:center;color:#94a3b8">No OQC entries yet</td></tr>';return;}
  rows.forEach(e=>{const tr=document.createElement("tr");
   tr.innerHTML=`<td>${fmtDate(e.dateIns)}</td><td>${esc(e.lot)}</td><td>${esc(e.odm)}</td><td>${esc(e.desc)}</td>
    <td>${e.lotSize}</td><td>${e.sample}</td><td>${e.totalNG||0}</td><td>${e.ngPct!=null?(e.ngPct*100).toFixed(2)+"%":""}</td>
    <td><span class="${e.result==="PASSED"?"pass":"fail"}">${e.result}</span></td>`;m.appendChild(tr);});}
 
-function renderIPQC(){const merged=ipqcEntries.slice();secEntries.forEach(s=>merged.push({section:s.section,checked:s.checked,passed:s.passed,date:s.date,line:"—",item:"Roll-up",failed:s.checked-s.passed}));
+function renderIPQC(){const LINE=filterDash(ipqcEntries,"date"),SEC=filterDash(secEntries,"date");
+ const merged=LINE.slice();SEC.forEach(s=>merged.push({section:s.section,checked:s.checked,passed:s.passed,date:s.date,line:"—",item:"Roll-up",failed:s.checked-s.passed}));
  const k=$("ipqc-kpis");const all=merged;
  const totC=all.reduce((a,e)=>a+(e.checked||0),0),totP=all.reduce((a,e)=>a+(e.passed||0),0);
- const totD=ipqcEntries.reduce((a,e)=>a+(e.defectTotal||0),0);
+ const totD=LINE.reduce((a,e)=>a+(e.defectTotal||0),0);
+ const totFail=totC-totP;
  const overall=totC?totP/totC*100:0;
+ const defRate=totC?totFail/totC*100:0;
  const secs={};all.forEach(e=>{const s=e.section||"?";if(!secs[s])secs[s]={c:0,p:0};
   secs[s].c+=e.checked||0;secs[s].p+=e.passed||0;});
  let best="—",bestF=-1;Object.keys(secs).forEach(s=>{const f=secs[s].c?secs[s].p/secs[s].c*100:0;if(f>bestF&&secs[s].c){best=s;bestF=f;}});
  const overallColor=overall>=95?"ok":(overall>=90?"warn":"bad");
  k.innerHTML=kpi("Overall FPY",totC?overall.toFixed(1)+"%":"—",totC.toLocaleString()+" checked",overallColor)+
+  kpi("Checked Qty",totC.toLocaleString(),"pcs checked")+
+  kpi("Failed Qty",totFail.toLocaleString(),"defective parts","bad")+
+  kpi("Defect Rate",totC?defRate.toFixed(2)+"%":"—","Failed / Checked")+
   kpi("Total Defectives",totD.toLocaleString(),"from defect entries","bad")+
   kpi("Best Section",esc(best),bestF>=0?bestF.toFixed(1)+"% FPY":"","ok")+
-  kpi("Entries",all.length.toLocaleString(),ipqcEntries.length+" line + "+secEntries.length+" rollup",isDark()?"teal":"");
+  kpi("Entries",all.length.toLocaleString(),LINE.length+" line + "+SEC.length+" rollup",isDark()?"teal":"");
  // by section bar
  const names=Object.keys(secs).sort();const vals=names.map(s=>secs[s].c?Math.round(secs[s].p/secs[s].c*1000)/10:0);
  const colors=vals.map(v=>v>=95?"#10B981":v>=90?"#F59E0B":"#EF4444");
@@ -777,7 +803,7 @@ function renderIPQC(){const merged=ipqcEntries.slice();secEntries.forEach(s=>mer
   colors:colors};
  charts.sec=new ApexCharts($("chart-sec"),secOpt);charts.sec.render();
  // by date line
- const byDate={};ipqcEntries.forEach(e=>{const d=e.date||"?";if(!byDate[d])byDate[d]={c:0,p:0};byDate[d].c+=e.checked||0;byDate[d].p+=e.passed||0;});
+ const byDate={};LINE.forEach(e=>{const d=strDate(e.date)||"?";if(!byDate[d])byDate[d]={c:0,p:0};byDate[d].c+=e.checked||0;byDate[d].p+=e.passed||0;});
  const dates=Object.keys(byDate).sort().slice(-20);
  const dateOpt={chart:{type:"line",height:260,fontFamily:"Inter",toolbar:{show:false},animations:{enabled:false}},
   series:[{name:"FPY %",data:dates.map(d=>byDate[d].c?Math.round(byDate[d].p/byDate[d].c*1000)/10:0)}],
@@ -789,7 +815,7 @@ function renderIPQC(){const merged=ipqcEntries.slice();secEntries.forEach(s=>mer
   annotations:{yaxis:[{y:95,borderColor:"#10B981",strokeDashArray:4,label:{text:"Target",style:{background:"#10B981",color:"#fff"}}}]}};
  charts.date=new ApexCharts($("chart-date"),dateOpt);charts.date.render();
  // defect pareto
- const defs={};ipqcEntries.forEach(e=>(e.defects||[]).forEach(d=>{defs[d.type]=(defs[d.type]||0)+d.qty;}));
+ const defs={};LINE.forEach(e=>(e.defects||[]).forEach(d=>{defs[d.type]=(defs[d.type]||0)+d.qty;}));
  const dl=Object.entries(defs).sort((a,b)=>b[1]-a[1]);const dTot=dl.reduce((a,x)=>a+x[1],0);
  const paretoNames=dl.map(x=>x[0].length>14?x[0].slice(0,13)+"…":x[0]);
  let cum=0;const cumArr=dl.map(x=>{cum+=x[1];return dTot?Math.round(cum/dTot*100):0;});
@@ -815,8 +841,8 @@ function renderIPQC(){const merged=ipqcEntries.slice();secEntries.forEach(s=>mer
  charts.vol=new ApexCharts($("chart-vol"),volOpt);charts.vol.render();
  // scorecard
  const sc=$("ipqc-scorecard");sc.innerHTML="";
- const rowData=ipqcEntries.slice().reverse().slice(0,60);
- if(!rowData.length&&!secEntries.length){sc.innerHTML='<tr><td colspan="8" style="text-align:center;color:#94a3b8">No IPQC entries yet</td></tr>';return;}
+ const rowData=LINE.slice().reverse().slice(0,60);
+ if(!rowData.length&&!SEC.length){sc.innerHTML='<tr><td colspan="8" style="text-align:center;color:#94a3b8">No IPQC entries yet</td></tr>';return;}
  rowData.forEach(e=>{const f=e.fpy!=null?e.fpy:0;const status=f>=95?"Good":f>=90?"OK":"Poor";
   const sc2=status==="Good"?"pass":status==="OK"?"warn":"fail";
   const tr=document.createElement("tr");
