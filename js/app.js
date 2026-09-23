@@ -269,31 +269,27 @@ async function bootstrapAuth(){
 function populateAll(){ populateIQC(); populateOQC(); populateIPQC(); }
 
 function fillOdmSelect(which){
-  const sel=$(which+"-odm-code"); if(!sel) return;
+  const dl=$(which+"-odm-list"); if(!dl) return;
   const list=MASTER.suppliers.length?MASTER.suppliers:ODM_LIST.map(n=>({code:"",name:n}));
-  sel.innerHTML='<option value="">— Select ODM / Customer code —</option>'+list.map(s=>{
-    const v=s.code||s.name;
-    return `<option value="${esc(v)}">${esc(v)}</option>`;
-  }).join("");
-  const dl=$(which+"-odm-name-list");
-  if(dl) dl.innerHTML=list.map(s=>`<option value="${esc(s.name)}"></option>`).join("");
+  dl.innerHTML=list.map(s=>{const v=s.code||s.name;return `<option value="${esc(v)}">${esc(s.name)}</option>`;}).join("");
 }
-function odmCodeChanged(which){
-  const sel=$(which+"-odm-code"), nm=$(which+"-odm-name"); if(!sel||!nm) return;
-  const code=sel.value;
-  const sup=(MASTER.suppliers||[]).find(s=>String(s.code)===String(code)||s.name===code);
-  nm.value = code ? (sup?sup.name:code) : "";
-}
-function odmNameChanged(which){
-  const nm=$(which+"-odm-name"), sel=$(which+"-odm-code"); if(!nm||!sel) return;
-  const t=nm.value.trim().toLowerCase();
-  if(!t){ sel.value=""; return; }
+function odmInput(which){
+  const el=$(which+"-odm-code"), nm=$(which+"-odm-name"); if(!el||!nm) return;
+  const v=el.value.trim();
+  if(!v){ nm.value=""; return; }
   const sups=MASTER.suppliers||[];
-  let m=sups.find(s=>String(s.name).toLowerCase()===t);
-  if(!m){ const pref=sups.filter(s=>String(s.name).toLowerCase().indexOf(t)===0); if(pref.length===1)m=pref[0]; }
-  let code=m?String(m.code):"";
-  if(!code){ const fb=[...sel.options].find(o=>o.value.toLowerCase()===t); if(fb) code=fb.value; }
-  if(code&&[...sel.options].some(o=>o.value===code)) sel.value=code;
+  const m=sups.find(s=>String(s.code)===v) || sups.find(s=>String(s.name).toLowerCase()===v.toLowerCase());
+  if(m) nm.value=m.name;
+}
+function odmCommit(which){
+  const el=$(which+"-odm-code"), nm=$(which+"-odm-name"); if(!el||!nm) return;
+  const v=el.value.trim();
+  if(!v){ nm.value=""; return; }
+  const sups=MASTER.suppliers||[];
+  let m=sups.find(s=>String(s.code)===v) || sups.find(s=>String(s.name).toLowerCase()===v.toLowerCase());
+  if(!m){ const pref=sups.filter(s=>String(s.name).toLowerCase().indexOf(v.toLowerCase())===0); if(pref.length===1)m=pref[0]; }
+  if(m){ el.value=String(m.code); nm.value=m.name; }
+  else if(!sups.length){ nm.value=v; }
 }
 
 function populateOQC(){
@@ -830,18 +826,16 @@ function init(){
  $("iqc-code").addEventListener("change",iqcMaterialChanged);
  $("iqc-code").addEventListener("input",iqcMaterialChanged);
   $("iqc-lotsize").addEventListener("input",iqcAutoSample);
-  $("iqc-odm-code").addEventListener("change",()=>odmCodeChanged("iqc"));
-  $("iqc-odm-name").addEventListener("input",()=>odmNameChanged("iqc"));
-  $("iqc-odm-name").addEventListener("change",()=>odmNameChanged("iqc"));
+  $("iqc-odm-code").addEventListener("input",()=>odmInput("iqc"));
+  $("iqc-odm-code").addEventListener("change",()=>odmCommit("iqc"));
   $("iqc-form").addEventListener("submit",iqcSubmit);
  $("oqc-date-rec").value=todayStr();$("oqc-date-ins").value=todayStr();
  ["oqc-sample","oqc-critical","oqc-major","oqc-minor"].forEach(id=>$(id).addEventListener("input",oqcCompute));
  $("oqc-code").addEventListener("change",oqcMaterialChanged);
  $("oqc-code").addEventListener("input",oqcMaterialChanged);
   $("oqc-lotsize").addEventListener("input",oqcAutoSample);
-  $("oqc-odm-code").addEventListener("change",()=>odmCodeChanged("oqc"));
-  $("oqc-odm-name").addEventListener("input",()=>odmNameChanged("oqc"));
-  $("oqc-odm-name").addEventListener("change",()=>odmNameChanged("oqc"));
+  $("oqc-odm-code").addEventListener("input",()=>odmInput("oqc"));
+  $("oqc-odm-code").addEventListener("change",()=>odmCommit("oqc"));
   $("oqc-form").addEventListener("submit",oqcSubmit);
  document.querySelectorAll("#ipqc-mode-toggle .pill").forEach(b=>b.addEventListener("click",()=>ipqcMode(b.dataset.mode)));
  $("ipqc-section").addEventListener("change",ipqcSectionChanged);

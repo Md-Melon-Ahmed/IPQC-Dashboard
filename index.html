@@ -147,8 +147,8 @@
         <button type="button" class="tiny-pill" data-day="ins" onclick="setToday('iqc',this.dataset.day)">Today</button></div></div>
     </div>
     <div class="grid-2">
-      <div class="field"><label>ODM / Customer Code *</label><select id="iqc-odm-code"><option value="">— Select code —</option></select></div>
-      <div class="field"><label>ODM / Customer Name</label><input type="text" id="iqc-odm-name" list="iqc-odm-name-list" placeholder="Type name to get code"><datalist id="iqc-odm-name-list"></datalist></div>
+      <div class="field"><label>ODM / Customer Code *</label><input type="text" id="iqc-odm-code" list="iqc-odm-list" placeholder="Type or pick ODM code" required><datalist id="iqc-odm-list"></datalist></div>
+      <div class="field"><label>ODM / Customer Name</label><input type="text" id="iqc-odm-name" placeholder="Auto-fills from code" readonly></div>
       <div class="field"><label>Material Code *</label><input type="text" id="iqc-code" list="material-list" placeholder="Type material code" required><datalist id="material-list"></datalist></div>
     </div>
     <div class="field"><label>Material Description</label><input type="text" id="iqc-desc" readonly></div>
@@ -238,8 +238,8 @@
         <button type="button" class="tiny-pill" data-day="ins" onclick="setToday('oqc',this.dataset.day)">Today</button></div></div>
     </div>
     <div class="grid-2">
-      <div class="field"><label>ODM / Customer Code *</label><select id="oqc-odm-code"><option value="">— Select code —</option></select></div>
-      <div class="field"><label>ODM / Customer Name</label><input type="text" id="oqc-odm-name" list="oqc-odm-name-list" placeholder="Type name to get code"><datalist id="oqc-odm-name-list"></datalist></div>
+      <div class="field"><label>ODM / Customer Code *</label><input type="text" id="oqc-odm-code" list="oqc-odm-list" placeholder="Type or pick ODM code" required><datalist id="oqc-odm-list"></datalist></div>
+      <div class="field"><label>ODM / Customer Name</label><input type="text" id="oqc-odm-name" placeholder="Auto-fills from code" readonly></div>
     </div>
     <div class="field"><label>Material Code *</label><input type="text" id="oqc-code" list="oqc-material-list" placeholder="Type material code" required><datalist id="oqc-material-list"></datalist></div>
     <div class="field"><label>Material Description</label><input type="text" id="oqc-desc" readonly></div>
