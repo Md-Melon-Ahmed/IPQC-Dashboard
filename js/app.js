@@ -683,6 +683,21 @@ function renderIQC(){const k=$("iqc-kpis");const total=iqcEntries.length;
   plotOptions:{pie:{donut:{size:"70%"}}},
   tooltip:{theme:isDark()?"dark":"light"}};
  charts.iqcDonut=new ApexCharts($("chart-iqc-donut"),donutOpt);charts.iqcDonut.render();
+ // bar: based on no. of item (by ODM)
+ const byOdm={};iqcEntries.forEach(e=>{const o=(e.odm||"—").trim()||"—";byOdm[o]=(byOdm[o]||0)+1;});
+ const odmArr=Object.entries(byOdm).sort((a,b)=>b[1]-a[1]).slice(0,16);
+ const odmTot=iqcEntries.length||0;
+ const odmOpt={chart:{type:"bar",height:300,fontFamily:"Inter",toolbar:{show:false},animations:{enabled:false}},
+  series:[{name:"No. of Item",data:odmArr.map(x=>x[1])}],colors:["#EF4444"],
+  plotOptions:{bar:{borderRadius:4,columnWidth:"55%"}},
+  xaxis:{categories:odmArr.map(x=>x[0].length>16?x[0].slice(0,15)+"…":x[0]),
+   labels:{rotate:-45,rotateAlways:true,style:{colors:txtColor(),fontSize:"9px"}}},
+  yaxis:{labels:{style:{colors:"#6B7280"}},title:{text:"No. of Item",style:{color:txtColor()}}},
+  dataLabels:{enabled:true,formatter:v=>odmTot?Math.round(v/odmTot*1000)/10+"%":v,style:{fontSize:"10px",colors:["#374151"]}},
+  grid:{borderColor:isDark()?"#334155":"#e2e8f0"},legend:{show:false},
+  tooltip:{theme:isDark()?"dark":"light",y:{formatter:v=>v+(odmTot?" ("+Math.round(v/odmTot*1000)/10+"%)":"")}}};
+ if(charts.iqcOdm)charts.iqcOdm.destroy();
+ charts.iqcOdm=new ApexCharts($("chart-iqc-odm"),odmOpt);charts.iqcOdm.render();
  // matrix table
  const m=$("iqc-matrix");m.innerHTML="";
  const rows=iqcEntries.slice().reverse().slice(0,60);if(!rows.length){m.innerHTML='<tr><td colspan="9" style="text-align:center;color:#94a3b8">No IQC entries yet</td></tr>';return;}
