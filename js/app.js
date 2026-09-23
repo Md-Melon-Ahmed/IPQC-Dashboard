@@ -14,7 +14,23 @@ const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
 const todayStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
 function fmtDate(v){if(!v)return"";const p=String(v).split("-");if(p.length!==3)return v;
  const m=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];return p[2]+"-"+(m[parseInt(p[1],10)-1]||p[1])+"-"+p[0];}
-function monthForDate(d){if(!d)return"Sep-26";const p=d.split("-");const n=["","Jan-26","Feb-26","Mar-26","Apr-26","May-26","June-26","July-26","Aug-26","Sep-26","Oct-26","Nov-26","Dec-26"];return n[parseInt(p[1],10)]||"Sep-26";}
+const MONTHS=["Jan","Feb","Mar","Apr","May","June","July","Aug","Sep","Oct","Nov","Dec"];
+function monthLabel(dt){const d=dt instanceof Date?dt:new Date(String(dt).slice(0,10)+"T12:00:00");if(isNaN(d.getTime()))return monthLabel(new Date());return MONTHS[d.getMonth()]+"-"+String(d.getFullYear()).slice(2);}
+function monthKey(l){const p=String(l||"").split("-");return (2000+parseInt(p[1],10))*12+Math.max(0,MONTHS.indexOf(p[0]));}
+function monthForDate(d){return d?monthLabel(d):monthLabel(new Date());}
+function buildMonthSet(){
+  const now=new Date(),set={};
+  for(let i=0;i<12;i++)set[monthLabel(new Date(now.getFullYear(),i,1))]=1;
+  [iqcEntries,oqcEntries].forEach(a=>a.forEach(e=>{if(e.dateIns)set[monthLabel(e.dateIns)]=1;}));
+  [ipqcEntries,secEntries].forEach(a=>a.forEach(e=>{if(e.date)set[monthLabel(e.date)]=1;if(e.month)set[e.month]=1;}));
+  return Object.keys(set).sort((a,b)=>monthKey(b)-monthKey(a));
+}
+function fillMonthSelects(){
+  const list=buildMonthSet(),cur=monthLabel(new Date());
+  ["iqc-month","oqc-month","ipqc-month"].forEach(id=>{const el=$(id);if(!el)return;const prev=el.value;
+    el.innerHTML=list.map(m=>`<option>${m}</option>`).join("");
+    el.value=(list.includes(prev)?prev:(list.includes(cur)?cur:list[0]))||"";});
+}
 function setToday(mod,which){if(mod==='iqc'||mod==='oqc'){if(which==='rec')$(mod+"-date-rec").value=todayStr();else $(mod+"-date-ins").value=todayStr();}else{$("ipqc-date").value=todayStr();}}
 // Picture attach from gallery/camera: keep up to 4 images as a JSON array on the hidden field
 function picList(which){try{const v=JSON.parse($(which+"-picture").value||"[]");return Array.isArray(v)?v:[];}catch(e){return []}}
@@ -246,9 +262,26 @@ async function bootstrapAuth(){
 
 function populateAll(){ populateIQC(); populateOQC(); populateIPQC(); }
 
+function fillOdmSelect(which){
+  const sel=$(which+"-odm-code"); if(!sel) return;
+  const list=MASTER.suppliers.length?MASTER.suppliers:ODM_LIST.map(n=>({code:"",name:n}));
+  sel.innerHTML='<option value="">— Select ODM / Customer code —</option>'+list.map(s=>{
+    const v=s.code||s.name, t=s.code?`${s.code} — ${s.name}`:s.name;
+    return `<option value="${esc(v)}">${esc(t)}</option>`;
+  }).join("");
+}
+function odmCodeChanged(which){
+  const sel=$(which+"-odm-code"), nm=$(which+"-odm-name"); if(!sel||!nm) return;
+  const code=sel.value;
+  const sup=(MASTER.suppliers||[]).find(s=>String(s.code)===String(code)||s.name===code);
+  if(sup){ nm.value=sup.name; nm.readOnly=true; }
+  else { nm.readOnly=false; if(code&&/[A-Za-z]/.test(code)) nm.value=code; }
+}
+
 function populateOQC(){
-  const odm=$("oqc-odm"), code=$("oqc-code");
-  if(!odm||!code) return;
+  const code=$("oqc-code");
+  if(!code) return;
+  fillOdmSelect("oqc");
   const list=MASTER.oqcMaterials.length?MASTER.oqcMaterials:MASTER.materials;
   const mdl=$("oqc-material-list");
   if(mdl) mdl.innerHTML=list.map(m=>`<option value="${esc(m.code)}">${esc(m.desc)}</option>`).join("");
@@ -272,11 +305,9 @@ function oqcAutoSample(){
 }
 
 function populateIQC(){
-  const odm=$("iqc-odm"), code=$("iqc-code");
-  if(!odm||!code) return;
-  const sup=MASTER.suppliers.length?MASTER.suppliers.map(s=>({code:s.code,name:s.name})):ODM_LIST.map(n=>({code:"",name:n}));
-  const dl=$("odm-list");
-  if(dl) dl.innerHTML=sup.map(s=>`<option value="${esc(s.code||s.name)}">${esc(s.name)}</option>`).join("");
+  const code=$("iqc-code");
+  if(!code) return;
+  fillOdmSelect("iqc");
   const mdl=$("material-list");
   if(mdl) mdl.innerHTML=MASTER.materials.map(m=>`<option value="${esc(m.code)}">${esc(m.desc)}</option>`).join("");
 }
@@ -382,6 +413,7 @@ async function loadRecords(){
   }catch(e){}
   if($("dashboard-app").classList.contains("active")){ destroyCharts(); const tab=document.querySelector(".dash-tabbar .tab.active"); const tb=tab?tab.dataset.tab:"iqc";
     if(tb==="ipqc") renderIPQC(); else if(tb==="oqc") renderOQC(); else renderIQC(); }
+  fillMonthSelects();
 }
 
 /* ============ Theme / language ============ */
@@ -421,7 +453,7 @@ async function iqcSubmit(e){e.preventDefault();
  if(!can("iqc")){toast("You are not authorized to enter IQC data.","error");return;}
  const calc=iqcCompute();
  const lot=$("iqc-lot").value.trim(), dateRec=$("iqc-date-rec").value, dateIns=$("iqc-date-ins").value;
- const odmVal=$("iqc-odm").value.trim();
+ const odmVal=$("iqc-odm-code").value.trim() || $("iqc-odm-name").value.trim();
  const sup=MASTER.suppliers.find(s=>String(s.code)===String(odmVal) || s.name===odmVal);
  const odmCode=sup?String(sup.code):(/^\d+$/.test(odmVal)?odmVal:"");
  const odmName=sup?sup.name:odmVal;
@@ -459,7 +491,7 @@ async function oqcSubmit(e){e.preventDefault();
  if(!can("oqc")){toast("You are not authorized to enter OQC data.","error");return;}
  const calc=oqcCompute();
  const lot=$("oqc-lot").value.trim(), dateRec=$("oqc-date-rec").value, dateIns=$("oqc-date-ins").value;
- const odmVal=$("oqc-odm").value.trim();
+ const odmVal=$("oqc-odm-code").value.trim() || $("oqc-odm-name").value.trim();
  const sup=MASTER.suppliers.find(s=>String(s.code)===String(odmVal) || s.name===odmVal);
  const odmCode=sup?String(sup.code):(/^\d+$/.test(odmVal)?odmVal:"");
  const odmName=sup?sup.name:odmVal;
@@ -779,14 +811,16 @@ function init(){
  ["iqc-sample","iqc-critical","iqc-major","iqc-minor"].forEach(id=>$(id).addEventListener("input",iqcCompute));
  $("iqc-code").addEventListener("change",iqcMaterialChanged);
  $("iqc-code").addEventListener("input",iqcMaterialChanged);
- $("iqc-lotsize").addEventListener("input",iqcAutoSample);
- $("iqc-form").addEventListener("submit",iqcSubmit);
+$("iqc-lotsize").addEventListener("input",iqcAutoSample);
+  $("iqc-odm-code").addEventListener("change",()=>odmCodeChanged("iqc"));
+  $("iqc-form").addEventListener("submit",iqcSubmit);
  $("oqc-date-rec").value=todayStr();$("oqc-date-ins").value=todayStr();
  ["oqc-sample","oqc-critical","oqc-major","oqc-minor"].forEach(id=>$(id).addEventListener("input",oqcCompute));
  $("oqc-code").addEventListener("change",oqcMaterialChanged);
  $("oqc-code").addEventListener("input",oqcMaterialChanged);
- $("oqc-lotsize").addEventListener("input",oqcAutoSample);
- $("oqc-form").addEventListener("submit",oqcSubmit);
+$("oqc-lotsize").addEventListener("input",oqcAutoSample);
+  $("oqc-odm-code").addEventListener("change",()=>odmCodeChanged("oqc"));
+  $("oqc-form").addEventListener("submit",oqcSubmit);
  document.querySelectorAll("#ipqc-mode-toggle .pill").forEach(b=>b.addEventListener("click",()=>ipqcMode(b.dataset.mode)));
  $("ipqc-section").addEventListener("change",ipqcSectionChanged);
  $("ipqc-line").addEventListener("change",ipqcLineChanged);
@@ -797,8 +831,9 @@ function init(){
  $("ipqc-section-form").addEventListener("submit",ipqcSecSubmit);
  ["ipqc-sec-checked","ipqc-sec-passed"].forEach(id=>$(id).addEventListener("input",ipqcSecCompute));
  document.querySelectorAll(".dash-tabbar .tab").forEach(b=>b.addEventListener("click",()=>switchDashTab(b.dataset.tab)));
- iqcReset();oqcReset();ipqcReset();ipqcSecCompute();addDefectRow();
- applyI18n();
+iqcReset();oqcReset();ipqcReset();ipqcSecCompute();addDefectRow();
+  fillMonthSelects();
+  applyI18n();
  loadMaster();
  bootstrapAuth();
  $("auth-email").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();submitAuth();}});
