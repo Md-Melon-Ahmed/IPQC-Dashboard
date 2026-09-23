@@ -27,7 +27,7 @@ function buildMonthSet(){
     const y=yearOf(e.date);if(y)y0=Math.min(y0,y);
     if(e.month){const my=2000+parseInt(String(e.month).split("-")[1],10);if(!isNaN(my))y0=Math.min(y0,my);}
   }));
-  const y1=now.getFullYear()+10;
+  const y1=now.getFullYear()+3;
   for(let y=y0;y<=y1;y++)for(let i=0;i<12;i++)set[monthLabel(new Date(y,i,1))]=1;
   return Object.keys(set).sort((a,b)=>monthKey(b)-monthKey(a));
 }
