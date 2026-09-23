@@ -28,7 +28,8 @@ function attachPic(which,input){
   });
   reader.readAsDataURL(file);
 }
-function clearPic(which){const fi=$(which+"-picture-input");if(fi)fi.value="";$(which+"-picture").value="";
+function clearPic(which){["-picture-input","-picture-cam"].forEach(s=>{const el=$(which+s);if(el)el.value="";});
+  $(which+"-picture").value="";
   const prev=$(which+"-picture-preview");prev.removeAttribute("src");prev.classList.add("hidden");}
 function compressImage(dataUrl,cb){
   const img=new Image();
@@ -410,10 +411,10 @@ async function iqcSubmit(e){e.preventDefault();
  if(!lot||!dateRec||!odmVal||!code||lotSize<=0||sample<=0){toast("Please fill all IQC required fields.","error");return;}
  const rec={module:"iqc",lot,dateRec,dateIns,odmCode,odm:odmName,code,desc,pg,cat,level,lotSize,sample,status,critical:cr,major:ma,minor:mi,
    totalNG:calc.total,ngPct:calc.ng,result:calc.pass?"PASSED":"FAILED",failDesc,picture,remarks,ts:new Date().toISOString()};
- iqcEntries.push(rec);save(IQC_KEY,iqcEntries);renderHistory("iqc");
- const now=new Date().toLocaleString("en-GB");
- const row=[now,"",lot,dateRec,dateIns,odmCode,odmName,code,desc,pg,cat,level,lotSize,sample,status,cr,ma,mi,calc.total,
-   calc.pass?"PASSED":"FAILED",(calc.ng*100).toFixed(2),failDesc,picture,remarks];
+iqcEntries.push(rec);save(IQC_KEY,iqcEntries);renderHistory("iqc");
+  const now=new Date().toLocaleString("en-GB");
+  const row=[now,"",lot,dateRec,dateIns,odmCode,odmName,code,desc,pg,cat,level,lotSize,sample,status,cr,ma,mi,calc.total,
+    calc.pass?"PASSED":"FAILED",(calc.ng*100).toFixed(2),failDesc,"",remarks];
  const msg=$("iqc-save-msg");
  try{ const r=await postEp(getIqcEp(),{action:"iqc",email:AUTH.email,data:row});
    if(r && r.status==="error"){ msg.textContent="Not saved: "+(r.message||"server error");msg.className="save-msg err"; }
@@ -448,10 +449,10 @@ async function oqcSubmit(e){e.preventDefault();
  if(!lot||!dateRec||!odmVal||!code||lotSize<=0||sample<=0){toast("Please fill all OQC required fields.","error");return;}
  const rec={module:"oqc",lot,dateRec,dateIns,odmCode,odm:odmName,code,desc,pg,cat,level,lotSize,sample,status,critical:cr,major:ma,minor:mi,
    totalNG:calc.total,ngPct:calc.ng,result:calc.pass?"PASSED":"FAILED",failDesc,picture,remarks,ts:new Date().toISOString()};
- oqcEntries.push(rec);save(OQC_KEY,oqcEntries);renderHistory("oqc");
- const now=new Date().toLocaleString("en-GB");
- const row=[now,"",lot,dateRec,dateIns,odmCode,odmName,code,desc,pg,cat,level,lotSize,sample,status,cr,ma,mi,calc.total,
-   calc.pass?"PASSED":"FAILED",(calc.ng*100).toFixed(2),failDesc,picture,remarks];
+oqcEntries.push(rec);save(OQC_KEY,oqcEntries);renderHistory("oqc");
+  const now=new Date().toLocaleString("en-GB");
+  const row=[now,"",lot,dateRec,dateIns,odmCode,odmName,code,desc,pg,cat,level,lotSize,sample,status,cr,ma,mi,calc.total,
+    calc.pass?"PASSED":"FAILED",(calc.ng*100).toFixed(2),failDesc,"",remarks];
  const msg=$("oqc-save-msg");
  try{ const r=await postEp(getOqcEp(),{action:"oqc",email:AUTH.email,data:row});
    if(r && r.status==="error"){ msg.textContent="Not saved: "+(r.message||"server error");msg.className="save-msg err"; }
