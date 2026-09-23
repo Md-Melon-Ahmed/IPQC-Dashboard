@@ -49,6 +49,7 @@ function compressImage(dataUrl,cb){
   img.src=dataUrl;
 }
 function showPic(src){const lb=$("lightbox");if(!lb)return;lb.src=src;lb.classList.remove("hidden");}
+function picSrc(v){return v&&/^(data:image|https?:\/\/)/.test(String(v))?String(v):"";}
 function showPicEntry(mod,i){const arr=mod==="iqc"?iqcEntries:oqcEntries;const e=arr[arr.length-1-i];if(e&&e.picture)showPic(e.picture);}
 
 let iqcEntries=load(IQC_KEY,[]), oqcEntries=load(OQC_KEY,[]), ipqcEntries=load(IPQC_KEY,[]), secEntries=load(SEC_KEY,[]);
@@ -414,7 +415,7 @@ async function iqcSubmit(e){e.preventDefault();
 iqcEntries.push(rec);save(IQC_KEY,iqcEntries);renderHistory("iqc");
   const now=new Date().toLocaleString("en-GB");
 const row=[now,AUTH.email,lot,dateRec,dateIns,odmCode,odmName,code,desc,pg,cat,level,lotSize,sample,status,cr,ma,mi,calc.total,
-    calc.pass?"PASSED":"FAILED",(calc.ng*100).toFixed(2),failDesc,"",remarks];
+    calc.pass?"PASSED":"FAILED",(calc.ng*100).toFixed(2),failDesc,picture,remarks];
   const msg=$("iqc-save-msg");
  try{ const r=await postEp(getIqcEp(),{action:"iqc",email:AUTH.email,data:row});
    if(r && r.status==="error"){ msg.textContent="Not saved: "+(r.message||"server error");msg.className="save-msg err"; }
@@ -452,7 +453,7 @@ async function oqcSubmit(e){e.preventDefault();
 oqcEntries.push(rec);save(OQC_KEY,oqcEntries);renderHistory("oqc");
   const now=new Date().toLocaleString("en-GB");
 const row=[now,AUTH.email,lot,dateRec,dateIns,odmCode,odmName,code,desc,pg,cat,level,lotSize,sample,status,cr,ma,mi,calc.total,
-    calc.pass?"PASSED":"FAILED",(calc.ng*100).toFixed(2),failDesc,"",remarks];
+    calc.pass?"PASSED":"FAILED",(calc.ng*100).toFixed(2),failDesc,picture,remarks];
   const msg=$("oqc-save-msg");
  try{ const r=await postEp(getOqcEp(),{action:"oqc",email:AUTH.email,data:row});
    if(r && r.status==="error"){ msg.textContent="Not saved: "+(r.message||"server error");msg.className="save-msg err"; }
@@ -534,14 +535,14 @@ function renderHistory(mod){if(mod==="iqc"){const tb=$("iqc-tbody");tb.innerHTML
   tr.innerHTML=`<td>${iqcEntries.length-i}</td><td>${esc(e.lot)}</td><td>${fmtDate(e.dateIns)}</td><td>${esc(e.odm)}</td>
    <td>${esc(e.desc)}</td><td>${e.lotSize}</td><td>${e.sample}</td><td>${e.totalNG||0}</td><td>${(e.ngPct!=null?(e.ngPct*100).toFixed(2)+"%":"")}</td>
    <td><span class="${e.result==="PASSED"?"pass":"fail"}">${e.result}</span></td>
-<td>${e.picture?`<img class="pic-thumb" src="${esc(e.picture)}" alt="pic" onclick="showPicEntry('iqc',${i})">`:"—"}</td>`;tb.appendChild(tr);});}
+<td>${picSrc(e.picture)?`<img class="pic-thumb" src="${esc(picSrc(e.picture))}" alt="pic" onclick="showPicEntry('iqc',${i})">`:"—"}</td>`;tb.appendChild(tr);});}
   else if(mod==="oqc"){const tb=$("oqc-tbody");tb.innerHTML="";
   const rows=oqcEntries.slice().reverse().slice(0,40);if(!rows.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;color:#94a3b8">No entries yet</td></tr>';return;}
   rows.forEach((e,i)=>{const tr=document.createElement("tr");
 tr.innerHTML=`<td>${oqcEntries.length-i}</td><td>${esc(e.lot)}</td><td>${fmtDate(e.dateIns)}</td><td>${esc(e.odm)}</td>
    <td>${esc(e.desc)}</td><td>${e.lotSize}</td><td>${e.sample}</td><td>${e.totalNG||0}</td><td>${(e.ngPct!=null?(e.ngPct*100).toFixed(2)+"%":"")}</td>
    <td><span class="${e.result==="PASSED"?"pass":"fail"}">${e.result}</span></td>
-   <td>${e.picture?`<img class="pic-thumb" src="${esc(e.picture)}" alt="pic" onclick="showPicEntry('oqc',${i})">`:"—"}</td>`;tb.appendChild(tr);});}
+   <td>${picSrc(e.picture)?`<img class="pic-thumb" src="${esc(picSrc(e.picture))}" alt="pic" onclick="showPicEntry('oqc',${i})">`:"—"}</td>`;tb.appendChild(tr);});}
  else{const tb=$("ipqc-tbody");tb.innerHTML="";
   const rows=ipqcEntries.slice().reverse().slice(0,40);if(!rows.length){tb.innerHTML='<tr><td colspan="12" style="text-align:center;color:#94a3b8">No entries yet</td></tr>';return;}
   rows.forEach((e,i)=>{const tr=document.createElement("tr");const cls=(e.fpy!=null&&e.fpy>=95)?"pass":"fail";
