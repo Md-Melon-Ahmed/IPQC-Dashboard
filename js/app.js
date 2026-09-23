@@ -275,12 +275,25 @@ function fillOdmSelect(which){
     const v=s.code||s.name;
     return `<option value="${esc(v)}">${esc(v)}</option>`;
   }).join("");
+  const dl=$(which+"-odm-name-list");
+  if(dl) dl.innerHTML=list.map(s=>`<option value="${esc(s.name)}"></option>`).join("");
 }
 function odmCodeChanged(which){
   const sel=$(which+"-odm-code"), nm=$(which+"-odm-name"); if(!sel||!nm) return;
   const code=sel.value;
   const sup=(MASTER.suppliers||[]).find(s=>String(s.code)===String(code)||s.name===code);
   nm.value = code ? (sup?sup.name:code) : "";
+}
+function odmNameChanged(which){
+  const nm=$(which+"-odm-name"), sel=$(which+"-odm-code"); if(!nm||!sel) return;
+  const t=nm.value.trim().toLowerCase();
+  if(!t){ sel.value=""; return; }
+  const sups=MASTER.suppliers||[];
+  let m=sups.find(s=>String(s.name).toLowerCase()===t);
+  if(!m){ const pref=sups.filter(s=>String(s.name).toLowerCase().indexOf(t)===0); if(pref.length===1)m=pref[0]; }
+  let code=m?String(m.code):"";
+  if(!code){ const fb=[...sel.options].find(o=>o.value.toLowerCase()===t); if(fb) code=fb.value; }
+  if(code&&[...sel.options].some(o=>o.value===code)) sel.value=code;
 }
 
 function populateOQC(){
@@ -818,6 +831,8 @@ function init(){
  $("iqc-code").addEventListener("input",iqcMaterialChanged);
   $("iqc-lotsize").addEventListener("input",iqcAutoSample);
   $("iqc-odm-code").addEventListener("change",()=>odmCodeChanged("iqc"));
+  $("iqc-odm-name").addEventListener("input",()=>odmNameChanged("iqc"));
+  $("iqc-odm-name").addEventListener("change",()=>odmNameChanged("iqc"));
   $("iqc-form").addEventListener("submit",iqcSubmit);
  $("oqc-date-rec").value=todayStr();$("oqc-date-ins").value=todayStr();
  ["oqc-sample","oqc-critical","oqc-major","oqc-minor"].forEach(id=>$(id).addEventListener("input",oqcCompute));
@@ -825,6 +840,8 @@ function init(){
  $("oqc-code").addEventListener("input",oqcMaterialChanged);
   $("oqc-lotsize").addEventListener("input",oqcAutoSample);
   $("oqc-odm-code").addEventListener("change",()=>odmCodeChanged("oqc"));
+  $("oqc-odm-name").addEventListener("input",()=>odmNameChanged("oqc"));
+  $("oqc-odm-name").addEventListener("change",()=>odmNameChanged("oqc"));
   $("oqc-form").addEventListener("submit",oqcSubmit);
  document.querySelectorAll("#ipqc-mode-toggle .pill").forEach(b=>b.addEventListener("click",()=>ipqcMode(b.dataset.mode)));
  $("ipqc-section").addEventListener("change",ipqcSectionChanged);
