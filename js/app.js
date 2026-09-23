@@ -37,7 +37,7 @@ function fillMonthSelects(){
     el.innerHTML=list.map(m=>`<option>${m}</option>`).join("");
     el.value=(list.includes(prev)?prev:(list.includes(cur)?cur:list[0]))||"";});
   const dm=$("dash-month");
-  if(dm){const prev=dm.value;const dl=[];for(const y of [2027,2028])for(let i=0;i<12;i++)dl.push(monthLabel(new Date(y,i,1)));
+  if(dm){const prev=dm.value;    const dl=[];for(const y of [2026,2027])for(let i=0;i<12;i++)dl.push(monthLabel(new Date(y,i,1)));
     dl.sort((a,b)=>monthKey(b)-monthKey(a));
     dm.innerHTML='<option value="">All months</option>'+dl.map(m=>`<option>${m}</option>`).join("");if(dl.includes(prev))dm.value=prev;}
 }
