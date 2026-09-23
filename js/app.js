@@ -272,16 +272,15 @@ function fillOdmSelect(which){
   const sel=$(which+"-odm-code"); if(!sel) return;
   const list=MASTER.suppliers.length?MASTER.suppliers:ODM_LIST.map(n=>({code:"",name:n}));
   sel.innerHTML='<option value="">— Select ODM / Customer code —</option>'+list.map(s=>{
-    const v=s.code||s.name, t=s.code?`${s.code} — ${s.name}`:s.name;
-    return `<option value="${esc(v)}">${esc(t)}</option>`;
+    const v=s.code||s.name;
+    return `<option value="${esc(v)}">${esc(v)}</option>`;
   }).join("");
 }
 function odmCodeChanged(which){
   const sel=$(which+"-odm-code"), nm=$(which+"-odm-name"); if(!sel||!nm) return;
   const code=sel.value;
   const sup=(MASTER.suppliers||[]).find(s=>String(s.code)===String(code)||s.name===code);
-  if(sup){ nm.value=sup.name; nm.readOnly=true; }
-  else { nm.readOnly=false; if(code&&/[A-Za-z]/.test(code)) nm.value=code; }
+  nm.value = code ? (sup?sup.name:code) : "";
 }
 
 function populateOQC(){
@@ -817,14 +816,14 @@ function init(){
  ["iqc-sample","iqc-critical","iqc-major","iqc-minor"].forEach(id=>$(id).addEventListener("input",iqcCompute));
  $("iqc-code").addEventListener("change",iqcMaterialChanged);
  $("iqc-code").addEventListener("input",iqcMaterialChanged);
-$("iqc-lotsize").addEventListener("input",iqcAutoSample);
+  $("iqc-lotsize").addEventListener("input",iqcAutoSample);
   $("iqc-odm-code").addEventListener("change",()=>odmCodeChanged("iqc"));
   $("iqc-form").addEventListener("submit",iqcSubmit);
  $("oqc-date-rec").value=todayStr();$("oqc-date-ins").value=todayStr();
  ["oqc-sample","oqc-critical","oqc-major","oqc-minor"].forEach(id=>$(id).addEventListener("input",oqcCompute));
  $("oqc-code").addEventListener("change",oqcMaterialChanged);
  $("oqc-code").addEventListener("input",oqcMaterialChanged);
-$("oqc-lotsize").addEventListener("input",oqcAutoSample);
+  $("oqc-lotsize").addEventListener("input",oqcAutoSample);
   $("oqc-odm-code").addEventListener("change",()=>odmCodeChanged("oqc"));
   $("oqc-form").addEventListener("submit",oqcSubmit);
  document.querySelectorAll("#ipqc-mode-toggle .pill").forEach(b=>b.addEventListener("click",()=>ipqcMode(b.dataset.mode)));
