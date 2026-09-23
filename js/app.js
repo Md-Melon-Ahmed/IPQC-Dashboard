@@ -708,19 +708,20 @@ function renderIQC(){const k=$("iqc-kpis");const E=filterDash(iqcEntries,"dateIn
   plotOptions:{pie:{donut:{size:"70%"}}},
   tooltip:{theme:isDark()?"dark":"light"}};
  charts.iqcDonut=new ApexCharts($("chart-iqc-donut"),donutOpt);charts.iqcDonut.render();
- // bar: based on no. of item (by ODM)
- const byOdm={};E.forEach(e=>{const o=(e.odm||"—").trim()||"—";byOdm[o]=(byOdm[o]||0)+1;});
- const odmArr=Object.entries(byOdm).sort((a,b)=>b[1]-a[1]).slice(0,16);
- const odmTot=E.length||0;
+ // bar: failed % by ODM (failed qty / received qty)
+ const byOdm={};E.forEach(e=>{const o=(e.odm||"—").trim()||"—";
+  if(!byOdm[o])byOdm[o]={ng:0,qty:0};
+  byOdm[o].ng+=e.totalNG||0;byOdm[o].qty+=parseInt(e.lotSize)||0;});
+ const odmArr=Object.entries(byOdm).map(([o,v])=>[o,v.qty?v.ng/v.qty*100:0,v.ng,v.qty]).sort((a,b)=>b[1]-a[1]).slice(0,16);
  const odmOpt={chart:{type:"bar",height:300,fontFamily:"Inter",toolbar:{show:false},animations:{enabled:false}},
-  series:[{name:"No. of Item",data:odmArr.map(x=>x[1])}],colors:["#EF4444"],
+  series:[{name:"Failed %",data:odmArr.map(x=>Math.round(x[1]*100)/100)}],colors:["#EF4444"],
   plotOptions:{bar:{borderRadius:4,columnWidth:"55%"}},
   xaxis:{categories:odmArr.map(x=>x[0].length>16?x[0].slice(0,15)+"…":x[0]),
    labels:{rotate:-45,rotateAlways:true,style:{colors:txtColor(),fontSize:"9px"}}},
-  yaxis:{labels:{style:{colors:"#6B7280"}},title:{text:"No. of Item",style:{color:txtColor()}}},
-  dataLabels:{enabled:true,formatter:v=>odmTot?Math.round(v/odmTot*1000)/10+"%":v,style:{fontSize:"10px",colors:["#374151"]}},
+  yaxis:{labels:{style:{colors:"#6B7280"},formatter:v=>v+"%"},title:{text:"Failed %",style:{color:txtColor()}}},
+  dataLabels:{enabled:true,formatter:v=>Math.round(v*100)/100+"%",style:{fontSize:"10px",colors:["#374151"]}},
   grid:{borderColor:isDark()?"#334155":"#e2e8f0"},legend:{show:false},
-  tooltip:{theme:isDark()?"dark":"light",y:{formatter:v=>v+(odmTot?" ("+Math.round(v/odmTot*1000)/10+"%)":"")}}};
+  tooltip:{theme:isDark()?"dark":"light",y:{formatter:(v,o)=>{const d=odmArr[o.dataPointIndex];return v+"%  ("+(d?d[2]:0)+" failed / "+(d?d[3]:0)+" received pcs)";}}}};
  if(charts.iqcOdm)charts.iqcOdm.destroy();
  charts.iqcOdm=new ApexCharts($("chart-iqc-odm"),odmOpt);charts.iqcOdm.render();
  // matrix table
