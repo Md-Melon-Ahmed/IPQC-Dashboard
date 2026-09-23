@@ -180,11 +180,11 @@
       <div class="field"><label>Fail Description</label><input type="text" id="iqc-faildesc" placeholder="If any"></div>
       <div class="field"><label>Picture <em>(optional)</em></label>
         <div class="pic-row">
-          <input type="file" id="iqc-picture-input" accept="image/*" onchange="attachPic('iqc',this)">
+          <input type="file" id="iqc-picture-input" accept="image/*" multiple onchange="attachPic('iqc',this)">
           <label class="tiny-pill cam-btn">📷 Camera<input type="file" id="iqc-picture-cam" accept="image/*" capture="environment" onchange="attachPic('iqc',this)" class="cam-input"></label>
           <button type="button" class="tiny-pill" title="Remove picture" onclick="clearPic('iqc')">✕</button>
         </div>
-        <input type="hidden" id="iqc-picture"><img id="iqc-picture-preview" class="pic-preview hidden" alt="Picture preview"></div>
+        <input type="hidden" id="iqc-picture"><div class="pic-previews" id="iqc-picture-previews"></div></div>
     </div>
     <div class="field"><label><span data-i18n="remarks">Remarks</span> <em>(optional)</em></label><input type="text" id="iqc-remarks"></div>
 
@@ -270,11 +270,11 @@
       <div class="field"><label>Fail Description</label><input type="text" id="oqc-faildesc" placeholder="If any"></div>
       <div class="field"><label>Picture <em>(optional)</em></label>
         <div class="pic-row">
-          <input type="file" id="oqc-picture-input" accept="image/*" onchange="attachPic('oqc',this)">
+          <input type="file" id="oqc-picture-input" accept="image/*" multiple onchange="attachPic('oqc',this)">
           <label class="tiny-pill cam-btn">📷 Camera<input type="file" id="oqc-picture-cam" accept="image/*" capture="environment" onchange="attachPic('oqc',this)" class="cam-input"></label>
           <button type="button" class="tiny-pill" title="Remove picture" onclick="clearPic('oqc')">✕</button>
         </div>
-        <input type="hidden" id="oqc-picture"><img id="oqc-picture-preview" class="pic-preview hidden" alt="Picture preview"></div>
+        <input type="hidden" id="oqc-picture"><div class="pic-previews" id="oqc-picture-previews"></div></div>
     </div>
     <div class="field"><label><span data-i18n="remarks">Remarks</span> <em>(optional)</em></label><input type="text" id="oqc-remarks"></div>
 
