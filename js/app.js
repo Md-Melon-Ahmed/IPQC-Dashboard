@@ -18,11 +18,17 @@ const MONTHS=["Jan","Feb","Mar","Apr","May","June","July","Aug","Sep","Oct","Nov
 function monthLabel(dt){const d=dt instanceof Date?dt:new Date(String(dt).slice(0,10)+"T12:00:00");if(isNaN(d.getTime()))return monthLabel(new Date());return MONTHS[d.getMonth()]+"-"+String(d.getFullYear()).slice(2);}
 function monthKey(l){const p=String(l||"").split("-");return (2000+parseInt(p[1],10))*12+Math.max(0,MONTHS.indexOf(p[0]));}
 function monthForDate(d){return d?monthLabel(d):monthLabel(new Date());}
+function yearOf(v){const d=new Date(String(v).slice(0,10)+"T12:00:00");return isNaN(d.getTime())?null:d.getFullYear();}
 function buildMonthSet(){
   const now=new Date(),set={};
-  for(let i=0;i<12;i++)set[monthLabel(new Date(now.getFullYear(),i,1))]=1;
-  [iqcEntries,oqcEntries].forEach(a=>a.forEach(e=>{if(e.dateIns)set[monthLabel(e.dateIns)]=1;}));
-  [ipqcEntries,secEntries].forEach(a=>a.forEach(e=>{if(e.date)set[monthLabel(e.date)]=1;if(e.month)set[e.month]=1;}));
+  let y0=now.getFullYear();
+  [iqcEntries,oqcEntries].forEach(a=>a.forEach(e=>{const y=yearOf(e.dateIns);if(y)y0=Math.min(y0,y);}));
+  [ipqcEntries,secEntries].forEach(a=>a.forEach(e=>{
+    const y=yearOf(e.date);if(y)y0=Math.min(y0,y);
+    if(e.month){const my=2000+parseInt(String(e.month).split("-")[1],10);if(!isNaN(my))y0=Math.min(y0,my);}
+  }));
+  const y1=now.getFullYear()+10;
+  for(let y=y0;y<=y1;y++)for(let i=0;i<12;i++)set[monthLabel(new Date(y,i,1))]=1;
   return Object.keys(set).sort((a,b)=>monthKey(b)-monthKey(a));
 }
 function fillMonthSelects(){
