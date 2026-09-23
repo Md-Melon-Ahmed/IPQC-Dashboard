@@ -37,19 +37,26 @@ function fillMonthSelects(){
     el.innerHTML=list.map(m=>`<option>${m}</option>`).join("");
     el.value=(list.includes(prev)?prev:(list.includes(cur)?cur:list[0]))||"";});
   const dm=$("dash-month");
-  if(dm){const prev=dm.value;dm.innerHTML='<option value="">All months</option>'+list.map(m=>`<option>${m}</option>`).join("");if(list.includes(prev))dm.value=prev;}
+  if(dm){const prev=dm.value;const dl=[];for(const y of [2027,2028])for(let i=0;i<12;i++)dl.push(monthLabel(new Date(y,i,1)));
+    dl.sort((a,b)=>monthKey(b)-monthKey(a));
+    dm.innerHTML='<option value="">All months</option>'+dl.map(m=>`<option>${m}</option>`).join("");if(dl.includes(prev))dm.value=prev;}
 }
 function strDate(v){return String(v==null?"":v).slice(0,10);}
 function filterDash(list,dateKey){
+  const has=dashMonth||dashFrom||dashTo;
   return (list||[]).filter(e=>{
     const d=strDate(e[dateKey]);
-    if(dashDate) return d===dashDate;
-    if(dashMonth) return d?monthLabel(d)===dashMonth:false;
+    if(!has) return true;
+    if(!d) return false;
+    if(dashFrom&&d<dashFrom) return false;
+    if(dashTo&&d>dashTo) return false;
+    if(dashMonth&&monthLabel(d)!==dashMonth) return false;
     return true;
   });
 }
-function clearDashFilters(){const m=$("dash-month"),d=$("dash-date");if(m)m.value="";if(d)d.value="";applyDashFilters();}
-function applyDashFilters(){const m=$("dash-month"),d=$("dash-date");dashMonth=m?m.value:"";dashDate=d?d.value:"";
+function clearDashFilters(){["dash-month","dash-date-from","dash-date-to"].forEach(id=>{const el=$(id);if(el)el.value="";});applyDashFilters();}
+function applyDashFilters(){const m=$("dash-month"),f=$("dash-date-from"),t=$("dash-date-to");
+  dashMonth=m?m.value:"";dashFrom=f?f.value:"";dashTo=t?t.value:"";
   const tab=document.querySelector(".dash-tabbar .tab.active");const tb=tab?tab.dataset.tab:"iqc";
   destroyCharts();if(tb==="ipqc")renderIPQC();else if(tb==="oqc")renderOQC();else renderIQC();}
 function setToday(mod,which){if(mod==='iqc'||mod==='oqc'){if(which==='rec')$(mod+"-date-rec").value=todayStr();else $(mod+"-date-ins").value=todayStr();}else{$("ipqc-date").value=todayStr();}}
@@ -112,7 +119,7 @@ function showPicEntry(mod,i){const arr=mod==="iqc"?iqcEntries:oqcEntries;const e
 
 let iqcEntries=load(IQC_KEY,[]), oqcEntries=load(OQC_KEY,[]), ipqcEntries=load(IPQC_KEY,[]), secEntries=load(SEC_KEY,[]);
 let themeIdx=0, charts={}, activeDefectIdx=0;
-let dashMonth="", dashDate="";
+let dashMonth="", dashFrom="", dashTo="";
 
 // Master data (from sheet)
 let MASTER={items:[],materials:[],oqcMaterials:[],suppliers:[],defectTypes:[],aql:{codeToSize:{},ranges:[],ac:{}}};

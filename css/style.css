@@ -203,7 +203,7 @@ tr:nth-child(even) td{background:rgba(255,255,255,.3)}
   border:none;border-bottom:3px solid transparent;padding:10px 16px;cursor:pointer}
 .dash-tabbar .tab.active{color:var(--enovar);border-bottom-color:var(--enovar)}
 
-.dash-filters{display:flex;gap:8px;align-items:center;margin-left:auto;padding:0 0 6px}
+.dash-filters{display:flex;gap:8px;align-items:center;margin-left:auto;padding:0 0 6px;flex-wrap:wrap}
 .dash-filters select,.dash-filters input{font-size:12px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#374151}
 .dash-filters select{min-width:130px}
 html[data-theme="dark"] .dash-filters select,html[data-theme="dark"] .dash-filters input{background:#1e293b;border-color:#334155;color:#e2e8f0}

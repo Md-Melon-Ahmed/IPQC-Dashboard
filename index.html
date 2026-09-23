@@ -409,7 +409,8 @@
     <button class="tab" data-tab="ipqc">IPQC Quality</button>
     <div class="dash-filters">
       <select id="dash-month" onchange="applyDashFilters()"><option value="">All months</option></select>
-      <input type="date" id="dash-date" onchange="applyDashFilters()">
+      <input type="date" id="dash-date-from" title="Start date" onchange="applyDashFilters()">
+      <input type="date" id="dash-date-to" title="End date" onchange="applyDashFilters()">
       <button type="button" class="tiny-pill" onclick="clearDashFilters()">Clear</button>
     </div>
   </div>
