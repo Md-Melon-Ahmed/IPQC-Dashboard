@@ -162,6 +162,12 @@ html[lang="bn"] body{font-family:'Noto Sans Bengali',Inter,sans-serif}
 table{width:100%;border-collapse:collapse;font-size:12.5px}
 th,td{border-bottom:1px solid rgba(148,163,184,.2);padding:8px 9px;text-align:left;white-space:nowrap}
 th{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#64748b;background:rgba(148,163,184,.08);position:sticky;top:0}
+/* Picture attach (gallery) */
+.pic-row{display:flex;align-items:center;gap:8px}
+.pic-row input[type="file"]{font-size:12px;color:#475569}
+.pic-preview{max-width:150px;max-height:150px;border-radius:10px;margin-top:6px;border:1px solid rgba(148,163,184,.4);object-fit:cover}
+.pic-thumb{width:34px;height:34px;border-radius:8px;object-fit:cover;cursor:zoom-in;border:1px solid rgba(148,163,184,.35)}
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;object-fit:contain;width:100%;height:100%;cursor:zoom-out}
 /* PASSED = green, FAILED = red (matches Google Sheet) */
 td .pass,td .warn,td .fail,#iqc-calc-result.pass,#iqc-calc-result.fail{color:#fff;font-weight:800;padding:3px 10px;border-radius:999px;display:inline-block;white-space:nowrap}
 td .pass,#iqc-calc-result.pass{background:#6AA84F}

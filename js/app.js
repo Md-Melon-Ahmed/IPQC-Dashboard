@@ -16,6 +16,39 @@ function fmtDate(v){if(!v)return"";const p=String(v).split("-");if(p.length!==3)
  const m=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];return p[2]+"-"+(m[parseInt(p[1],10)-1]||p[1])+"-"+p[0];}
 function monthForDate(d){if(!d)return"Sep-26";const p=d.split("-");const n=["","Jan-26","Feb-26","Mar-26","Apr-26","May-26","June-26","July-26","Aug-26","Sep-26","Oct-26","Nov-26","Dec-26"];return n[parseInt(p[1],10)]||"Sep-26";}
 function setToday(mod,which){if(mod==='iqc'||mod==='oqc'){if(which==='rec')$(mod+"-date-rec").value=todayStr();else $(mod+"-date-ins").value=todayStr();}else{$("ipqc-date").value=todayStr();}}
+// Picture attach from gallery: compress into a small data URL (< ~45k chars so it fits a sheet cell)
+function attachPic(which,input){
+  const file=input.files&&input.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>compressImage(reader.result,dataUrl=>{
+    $(which+"-picture").value=dataUrl||"";
+    const prev=$(which+"-picture-preview");
+    if(dataUrl){prev.src=dataUrl;prev.classList.remove("hidden");}
+    else {prev.removeAttribute("src");prev.classList.add("hidden");}
+  });
+  reader.readAsDataURL(file);
+}
+function clearPic(which){const fi=$(which+"-picture-input");if(fi)fi.value="";$(which+"-picture").value="";
+  const prev=$(which+"-picture-preview");prev.removeAttribute("src");prev.classList.add("hidden");}
+function compressImage(dataUrl,cb){
+  const img=new Image();
+  img.onload=()=>{
+    const max=600;let s=Math.min(1,max/Math.max(img.width,img.height));
+    let w=Math.max(180,Math.round(img.width*s)),h=Math.max(180,Math.round(img.height*s));
+    const c=document.createElement("canvas");c.width=w;c.height=h;const ctx=c.getContext("2d");
+    let out="";
+    for(let q=0.85;q>=0.2;q-=0.05){
+      ctx.fillStyle="#fff";ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);
+      out=c.toDataURL("image/jpeg",q);
+      if(out.length<=45000)break;
+      w=Math.max(120,Math.round(w*0.8));h=Math.max(120,Math.round(h*0.8));c.width=w;c.height=h;
+    }
+    cb(out);
+  };
+  img.src=dataUrl;
+}
+function showPic(src){const lb=$("lightbox");if(!lb)return;lb.src=src;lb.classList.remove("hidden");}
+function showPicEntry(mod,i){const arr=mod==="iqc"?iqcEntries:oqcEntries;const e=arr[arr.length-1-i];if(e&&e.picture)showPic(e.picture);}
 
 let iqcEntries=load(IQC_KEY,[]), oqcEntries=load(OQC_KEY,[]), ipqcEntries=load(IPQC_KEY,[]), secEntries=load(SEC_KEY,[]);
 let themeIdx=0, charts={}, activeDefectIdx=0;
@@ -310,13 +343,13 @@ function openDashboard(){if(!can("dashboard")){toast("You are not authorized to 
 async function loadRecords(){
   try{
     const d=await apiGet("iqc");
-    if(d&&d.rows){ iqcEntries=d.rows.map(r=>({lot:r[2],dateRec:r[3],dateIns:r[4],odm:r[5],code:r[6],desc:r[7],
-      lotSize:parseInt(r[11])||0,sample:parseInt(r[12])||0,totalNG:parseInt(r[17])||0,result:r[18],ngPct:(parseFloat(r[19])||0)/100})); }
+    if(d&&d.rows){ iqcEntries=d.rows.map(r=>({lot:r[2],dateRec:r[3],dateIns:r[4],odm:r[6],code:r[7],desc:r[8],
+      lotSize:parseInt(r[12])||0,sample:parseInt(r[13])||0,totalNG:parseInt(r[18])||0,result:r[19],ngPct:(parseFloat(r[20])||0)/100,picture:r[22]||""})); }
   }catch(e){}
   try{
     const d3=await apiGet("oqc");
-    if(d3&&d3.rows){ oqcEntries=d3.rows.map(r=>({lot:r[2],dateRec:r[3],dateIns:r[4],odm:r[5],code:r[6],desc:r[7],
-      lotSize:parseInt(r[11])||0,sample:parseInt(r[12])||0,totalNG:parseInt(r[17])||0,result:r[18],ngPct:(parseFloat(r[19])||0)/100})); }
+    if(d3&&d3.rows){ oqcEntries=d3.rows.map(r=>({lot:r[2],dateRec:r[3],dateIns:r[4],odm:r[6],code:r[7],desc:r[8],
+      lotSize:parseInt(r[12])||0,sample:parseInt(r[13])||0,totalNG:parseInt(r[18])||0,result:r[19],ngPct:(parseFloat(r[20])||0)/100,picture:r[22]||""})); }
   }catch(e){}
   try{
     const d2=await apiGet("ipqc");
@@ -360,7 +393,7 @@ function iqcCompute(){const sample=parseFloat($("iqc-sample").value)||0;
  const el=$("iqc-calc-result");el.textContent=pass?"PASSED":"FAILED";el.className=pass?"pass":"fail";
  return{total,ng,pass};}
 function iqcReset(){$("iqc-form").reset();$("iqc-date-rec").value=todayStr();$("iqc-date-ins").value=todayStr();
- $("iqc-critical").value=0;$("iqc-major").value=0;$("iqc-minor").value=0;iqcCompute();}
+ $("iqc-critical").value=0;$("iqc-major").value=0;$("iqc-minor").value=0;clearPic("iqc");iqcCompute();}
 async function iqcSubmit(e){e.preventDefault();
  if(!can("iqc")){toast("You are not authorized to enter IQC data.","error");return;}
  const calc=iqcCompute();
@@ -398,7 +431,7 @@ function oqcCompute(){const sample=parseFloat($("oqc-sample").value)||0;
  const el=$("oqc-calc-result");el.textContent=pass?"PASSED":"FAILED";el.className=pass?"pass":"fail";
  return{total,ng,pass};}
 function oqcReset(){$("oqc-form").reset();$("oqc-date-rec").value=todayStr();$("oqc-date-ins").value=todayStr();
- $("oqc-critical").value=0;$("oqc-major").value=0;$("oqc-minor").value=0;oqcCompute();}
+ $("oqc-critical").value=0;$("oqc-major").value=0;$("oqc-minor").value=0;clearPic("oqc");oqcCompute();}
 async function oqcSubmit(e){e.preventDefault();
  if(!can("oqc")){toast("You are not authorized to enter OQC data.","error");return;}
  const calc=oqcCompute();
@@ -499,13 +532,15 @@ function renderHistory(mod){if(mod==="iqc"){const tb=$("iqc-tbody");tb.innerHTML
  rows.forEach((e,i)=>{const tr=document.createElement("tr");
   tr.innerHTML=`<td>${iqcEntries.length-i}</td><td>${esc(e.lot)}</td><td>${fmtDate(e.dateIns)}</td><td>${esc(e.odm)}</td>
    <td>${esc(e.desc)}</td><td>${e.lotSize}</td><td>${e.sample}</td><td>${e.totalNG||0}</td><td>${(e.ngPct!=null?(e.ngPct*100).toFixed(2)+"%":"")}</td>
-   <td><span class="${e.result==="PASSED"?"pass":"fail"}">${e.result}</span></td>`;tb.appendChild(tr);});}
- else if(mod==="oqc"){const tb=$("oqc-tbody");tb.innerHTML="";
+   <td><span class="${e.result==="PASSED"?"pass":"fail"}">${e.result}</span></td>
+<td>${e.picture?`<img class="pic-thumb" src="${esc(e.picture)}" alt="pic" onclick="showPicEntry('iqc',${i})">`:"—"}</td>`;tb.appendChild(tr);});}
+  else if(mod==="oqc"){const tb=$("oqc-tbody");tb.innerHTML="";
   const rows=oqcEntries.slice().reverse().slice(0,40);if(!rows.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;color:#94a3b8">No entries yet</td></tr>';return;}
   rows.forEach((e,i)=>{const tr=document.createElement("tr");
-   tr.innerHTML=`<td>${oqcEntries.length-i}</td><td>${esc(e.lot)}</td><td>${fmtDate(e.dateIns)}</td><td>${esc(e.odm)}</td>
-    <td>${esc(e.desc)}</td><td>${e.lotSize}</td><td>${e.sample}</td><td>${e.totalNG||0}</td><td>${(e.ngPct!=null?(e.ngPct*100).toFixed(2)+"%":"")}</td>
-    <td><span class="${e.result==="PASSED"?"pass":"fail"}">${e.result}</span></td>`;tb.appendChild(tr);});}
+tr.innerHTML=`<td>${oqcEntries.length-i}</td><td>${esc(e.lot)}</td><td>${fmtDate(e.dateIns)}</td><td>${esc(e.odm)}</td>
+   <td>${esc(e.desc)}</td><td>${e.lotSize}</td><td>${e.sample}</td><td>${e.totalNG||0}</td><td>${(e.ngPct!=null?(e.ngPct*100).toFixed(2)+"%":"")}</td>
+   <td><span class="${e.result==="PASSED"?"pass":"fail"}">${e.result}</span></td>
+   <td>${e.picture?`<img class="pic-thumb" src="${esc(e.picture)}" alt="pic" onclick="showPicEntry('oqc',${i})">`:"—"}</td>`;tb.appendChild(tr);});}
  else{const tb=$("ipqc-tbody");tb.innerHTML="";
   const rows=ipqcEntries.slice().reverse().slice(0,40);if(!rows.length){tb.innerHTML='<tr><td colspan="12" style="text-align:center;color:#94a3b8">No entries yet</td></tr>';return;}
   rows.forEach((e,i)=>{const tr=document.createElement("tr");const cls=(e.fpy!=null&&e.fpy>=95)?"pass":"fail";

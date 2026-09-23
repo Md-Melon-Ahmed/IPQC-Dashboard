@@ -183,7 +183,9 @@
     </div>
     <div class="grid-2">
       <div class="field"><label>Fail Description</label><input type="text" id="iqc-faildesc" placeholder="If any"></div>
-      <div class="field"><label>Picture URL</label><input type="url" id="iqc-picture" placeholder="https://… (optional)"></div>
+      <div class="field"><label>Picture <em>(optional)</em></label>
+        <div class="pic-row"><input type="file" id="iqc-picture-input" accept="image/*" onchange="attachPic('iqc',this)"><button type="button" class="tiny-pill" title="Remove picture" onclick="clearPic('iqc')">✕</button></div>
+        <input type="hidden" id="iqc-picture"><img id="iqc-picture-preview" class="pic-preview hidden" alt="Picture preview"></div>
     </div>
     <div class="field"><label><span data-i18n="remarks">Remarks</span> <em>(optional)</em></label><input type="text" id="iqc-remarks"></div>
 
@@ -195,7 +197,7 @@
     <div class="history-head"><h3>Recent IQC Entries</h3>
       <button class="btn-sm" onclick="renderHistory('iqc')">Refresh</button></div>
     <div class="table-wrap"><table><thead>
-      <tr><th>#</th><th>LOT</th><th>Insp Date</th><th>ODM</th><th>Material</th><th>Lot</th><th>Sample</th><th>NG</th><th>NG%</th><th>Result</th></tr>
+      <tr><th>#</th><th>LOT</th><th>Insp Date</th><th>ODM</th><th>Material</th><th>Lot</th><th>Sample</th><th>NG</th><th>NG%</th><th>Result</th><th>Pic</th></tr>
     </thead><tbody id="iqc-tbody"></tbody></table></div>
   </div>
 
@@ -267,7 +269,9 @@
     </div>
     <div class="grid-2">
       <div class="field"><label>Fail Description</label><input type="text" id="oqc-faildesc" placeholder="If any"></div>
-      <div class="field"><label>Picture URL</label><input type="url" id="oqc-picture" placeholder="https://… (optional)"></div>
+      <div class="field"><label>Picture <em>(optional)</em></label>
+        <div class="pic-row"><input type="file" id="oqc-picture-input" accept="image/*" onchange="attachPic('oqc',this)"><button type="button" class="tiny-pill" title="Remove picture" onclick="clearPic('oqc')">✕</button></div>
+        <input type="hidden" id="oqc-picture"><img id="oqc-picture-preview" class="pic-preview hidden" alt="Picture preview"></div>
     </div>
     <div class="field"><label><span data-i18n="remarks">Remarks</span> <em>(optional)</em></label><input type="text" id="oqc-remarks"></div>
 
@@ -279,7 +283,7 @@
     <div class="history-head"><h3>Recent OQC Entries</h3>
       <button class="btn-sm" onclick="renderHistory('oqc')">Refresh</button></div>
     <div class="table-wrap"><table><thead>
-      <tr><th>#</th><th>LOT</th><th>Insp Date</th><th>ODM</th><th>Material</th><th>Lot</th><th>Sample</th><th>NG</th><th>NG%</th><th>Result</th></tr>
+      <tr><th>#</th><th>LOT</th><th>Insp Date</th><th>ODM</th><th>Material</th><th>Lot</th><th>Sample</th><th>NG</th><th>NG%</th><th>Result</th><th>Pic</th></tr>
     </thead><tbody id="oqc-tbody"></tbody></table></div>
   </div>
 
@@ -486,5 +490,7 @@ window.addEventListener("DOMContentLoaded", () => {
   else if (v === "dashboard") openDashboard();
 });
 </script>
+
+<img id="lightbox" class="lightbox hidden" alt="" onclick="this.classList.add('hidden')">
 </body>
 </html>
