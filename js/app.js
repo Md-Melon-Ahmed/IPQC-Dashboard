@@ -413,9 +413,9 @@ async function iqcSubmit(e){e.preventDefault();
    totalNG:calc.total,ngPct:calc.ng,result:calc.pass?"PASSED":"FAILED",failDesc,picture,remarks,ts:new Date().toISOString()};
 iqcEntries.push(rec);save(IQC_KEY,iqcEntries);renderHistory("iqc");
   const now=new Date().toLocaleString("en-GB");
-  const row=[now,"",lot,dateRec,dateIns,odmCode,odmName,code,desc,pg,cat,level,lotSize,sample,status,cr,ma,mi,calc.total,
+const row=[now,AUTH.email,lot,dateRec,dateIns,odmCode,odmName,code,desc,pg,cat,level,lotSize,sample,status,cr,ma,mi,calc.total,
     calc.pass?"PASSED":"FAILED",(calc.ng*100).toFixed(2),failDesc,"",remarks];
- const msg=$("iqc-save-msg");
+  const msg=$("iqc-save-msg");
  try{ const r=await postEp(getIqcEp(),{action:"iqc",email:AUTH.email,data:row});
    if(r && r.status==="error"){ msg.textContent="Not saved: "+(r.message||"server error");msg.className="save-msg err"; }
    else { msg.textContent="Saved & synced to sheet ✓";msg.className="save-msg ok"; } }
@@ -451,9 +451,9 @@ async function oqcSubmit(e){e.preventDefault();
    totalNG:calc.total,ngPct:calc.ng,result:calc.pass?"PASSED":"FAILED",failDesc,picture,remarks,ts:new Date().toISOString()};
 oqcEntries.push(rec);save(OQC_KEY,oqcEntries);renderHistory("oqc");
   const now=new Date().toLocaleString("en-GB");
-  const row=[now,"",lot,dateRec,dateIns,odmCode,odmName,code,desc,pg,cat,level,lotSize,sample,status,cr,ma,mi,calc.total,
+const row=[now,AUTH.email,lot,dateRec,dateIns,odmCode,odmName,code,desc,pg,cat,level,lotSize,sample,status,cr,ma,mi,calc.total,
     calc.pass?"PASSED":"FAILED",(calc.ng*100).toFixed(2),failDesc,"",remarks];
- const msg=$("oqc-save-msg");
+  const msg=$("oqc-save-msg");
  try{ const r=await postEp(getOqcEp(),{action:"oqc",email:AUTH.email,data:row});
    if(r && r.status==="error"){ msg.textContent="Not saved: "+(r.message||"server error");msg.className="save-msg err"; }
    else { msg.textContent="Saved & synced to sheet ✓";msg.className="save-msg ok"; } }
@@ -505,7 +505,7 @@ async function ipqcSubmit(e){e.preventDefault();
    fpy:Math.round(fpy*100)/100,remarks:$("ipqc-remarks").value.trim(),ts:new Date().toISOString()};
  ipqcEntries.push(rec);save(IPQC_KEY,ipqcEntries);renderHistory("ipqc");
  const now=new Date().toLocaleString("en-GB");
- const row=[now,"",date,section,line,hour,timeStr,code,item,pg,target,checked,passed,repaired,failed,defectTotal,
+ const row=[now,AUTH.email,date,section,line,hour,timeStr,code,item,pg,target,checked,passed,repaired,failed,defectTotal,
    Math.round(fpy*100)/100,JSON.stringify(defects),$("ipqc-remarks").value.trim()];
  const msg=$("ipqc-save-msg");
  try{ const r=await postEp(getIpqcEp(),{action:"ipqc",email:AUTH.email,data:row});
