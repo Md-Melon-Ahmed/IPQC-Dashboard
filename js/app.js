@@ -329,13 +329,13 @@ function oqcMat(code){
 }
 function oqcMaterialChanged(){
   const m=oqcMat($("oqc-code").value);
-  if(m){ $("oqc-desc").value=m.desc||""; $("oqc-pg").value=m.pg||""; $("oqc-cat").value=m.cat||""; $("oqc-level").value=m.level||"II"; }
-  else { $("oqc-desc").value=""; $("oqc-pg").value=""; $("oqc-cat").value=""; $("oqc-level").value=""; }
+  if(m){ $("oqc-desc").value=m.desc||""; $("oqc-pg").value=m.pg||""; $("oqc-cat").value=m.cat||""; $("oqc-level").value="S4"; }
+  else { $("oqc-desc").value=""; $("oqc-pg").value=""; $("oqc-cat").value=""; $("oqc-level").value="S4"; }
   oqcAutoSample();
 }
 function oqcAutoSample(){
   const lot=parseInt($("oqc-lotsize").value)||0;
-  const level=$("oqc-level").value||"II";
+  const level="S4";
   if(!lot||!masterReady){return;}
   const r=(MASTER.aql.ranges||[]).find(x=>lot>=x.min && lot<=x.max);
   if(r){ const letter=r[level]||r["II"]; const size=(MASTER.aql.codeToSize||{})[letter]; if(size){ $("oqc-sample").value=size; oqcCompute(); } }
@@ -351,13 +351,13 @@ function populateIQC(){
 function iqcMaterialChanged(){
   const c=$("iqc-code").value.trim();
   const m=MASTER.materials.find(x=>String(x.code)===String(c));
-  if(m){ $("iqc-desc").value=m.desc||""; $("iqc-pg").value=m.pg||""; $("iqc-cat").value=m.cat||""; $("iqc-level").value=m.level||"II"; }
-  else { $("iqc-desc").value=""; $("iqc-pg").value=""; $("iqc-cat").value=""; $("iqc-level").value=""; }
+  if(m){ $("iqc-desc").value=m.desc||""; $("iqc-pg").value=m.pg||""; $("iqc-cat").value=m.cat||""; $("iqc-level").value="II"; }
+  else { $("iqc-desc").value=""; $("iqc-pg").value=""; $("iqc-cat").value=""; $("iqc-level").value="II"; }
   iqcAutoSample();
 }
 function iqcAutoSample(){
   const lot=parseInt($("iqc-lotsize").value)||0;
-  const level=$("iqc-level").value||"II";
+  const level="II";
   if(!lot||!masterReady){return;}
   const r=(MASTER.aql.ranges||[]).find(x=>lot>=x.min && lot<=x.max);
   if(r){ const letter=r[level]||r["II"]; const size=(MASTER.aql.codeToSize||{})[letter]; if(size){ $("iqc-sample").value=size; iqcCompute(); } }
@@ -486,7 +486,7 @@ function iqcCompute(){const sample=parseFloat($("iqc-sample").value)||0;
  const cr=parseInt($("iqc-critical").value)||0,ma=parseInt($("iqc-major").value)||0,mi=parseInt($("iqc-minor").value)||0;
  const total=cr+ma+mi;const ng=sample>0?total/sample:0;
  $("iqc-calc-ng").textContent=total;$("iqc-calc-ngpct").textContent=(ng*100).toFixed(2)+"%";
- const letter=codeLetterFor(parseInt($("iqc-lotsize").value)||0,$("iqc-level").value);
+ const letter=codeLetterFor(parseInt($("iqc-lotsize").value)||0,"II");
  let pass;
  if(letter&&MASTER.aql.ac&&MASTER.aql.ac[letter]){
    const acMa=acNumber(letter,"0.65"),acMi=acNumber(letter,"1.5");
@@ -500,7 +500,7 @@ function iqcCompute(){const sample=parseFloat($("iqc-sample").value)||0;
  const el=$("iqc-calc-result");el.textContent=pass?"PASSED":"FAILED";el.className=pass?"pass":"fail";
  return{total,ng,pass};}
 function iqcReset(){$("iqc-form").reset();$("iqc-date-rec").value=todayStr();$("iqc-date-ins").value=todayStr();
- $("iqc-critical").value=0;$("iqc-major").value=0;$("iqc-minor").value=0;clearPic("iqc");iqcCompute();}
+ $("iqc-critical").value=0;$("iqc-major").value=0;$("iqc-minor").value=0;$("iqc-level").value="II";clearPic("iqc");iqcCompute();}
 async function iqcSubmit(e){e.preventDefault();
  if(!can("iqc")){toast("You are not authorized to enter IQC data.","error");return;}
  const calc=iqcCompute();
@@ -533,7 +533,7 @@ function oqcCompute(){const sample=parseFloat($("oqc-sample").value)||0;
  const cr=parseInt($("oqc-critical").value)||0,ma=parseInt($("oqc-major").value)||0,mi=parseInt($("oqc-minor").value)||0;
  const total=cr+ma+mi;const ng=sample>0?total/sample:0;
  $("oqc-calc-ng").textContent=total;$("oqc-calc-ngpct").textContent=(ng*100).toFixed(2)+"%";
- const letter=codeLetterFor(parseInt($("oqc-lotsize").value)||0,$("oqc-level").value);
+ const letter=codeLetterFor(parseInt($("oqc-lotsize").value)||0,"S4");
  let pass;
  if(letter&&MASTER.aql.ac&&MASTER.aql.ac[letter]){
    const acMa=acNumber(letter,"0.65"),acMi=acNumber(letter,"1.5");
@@ -547,7 +547,7 @@ function oqcCompute(){const sample=parseFloat($("oqc-sample").value)||0;
  const el=$("oqc-calc-result");el.textContent=pass?"PASSED":"FAILED";el.className=pass?"pass":"fail";
  return{total,ng,pass};}
 function oqcReset(){$("oqc-form").reset();$("oqc-date-rec").value=todayStr();$("oqc-date-ins").value=todayStr();
- $("oqc-critical").value=0;$("oqc-major").value=0;$("oqc-minor").value=0;clearPic("oqc");oqcCompute();}
+ $("oqc-critical").value=0;$("oqc-major").value=0;$("oqc-minor").value=0;$("oqc-level").value="S4";clearPic("oqc");oqcCompute();}
 async function oqcSubmit(e){e.preventDefault();
  if(!can("oqc")){toast("You are not authorized to enter OQC data.","error");return;}
  const calc=oqcCompute();
