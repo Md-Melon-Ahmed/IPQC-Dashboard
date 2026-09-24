@@ -476,12 +476,27 @@ function toast(msg,type){const c=$("toast-container");const d=document.createEle
  d.textContent=msg;c.appendChild(d);setTimeout(()=>d.remove(),4000);}
 
 /* ============ IQC logic ============ */
+function codeLetterFor(lot,level){ if(!masterReady||!lot) return null;
+ const r=(MASTER.aql.ranges||[]).find(x=>lot>=x.min&&lot<=x.max); return r?(r[level]||r["II"]):null; }
+function acNumber(letter,aqlKey){ if(!MASTER.aql.ac||!MASTER.aql.ac[letter]) return null;
+ let v=MASTER.aql.ac[letter][aqlKey]; let g=0;
+ while(typeof v==="string"&&g++<25){ v=(MASTER.aql.ac[v]||{})[aqlKey]; }
+ return (typeof v==="number")?v:null; }
 function iqcCompute(){const sample=parseFloat($("iqc-sample").value)||0;
  const cr=parseInt($("iqc-critical").value)||0,ma=parseInt($("iqc-major").value)||0,mi=parseInt($("iqc-minor").value)||0;
  const total=cr+ma+mi;const ng=sample>0?total/sample:0;
  $("iqc-calc-ng").textContent=total;$("iqc-calc-ngpct").textContent=(ng*100).toFixed(2)+"%";
- const crP=sample>0?cr/sample:0,maP=sample>0?ma/sample:0,miP=sample>0?mi/sample:0;
- let pass=true;if(cr>0)pass=false;else if(maP>0.0065)pass=false;else if(miP>0.015)pass=false;
+ const letter=codeLetterFor(parseInt($("iqc-lotsize").value)||0,$("iqc-level").value);
+ let pass;
+ if(letter&&MASTER.aql.ac&&MASTER.aql.ac[letter]){
+   const acMa=acNumber(letter,"0.65"),acMi=acNumber(letter,"1.5");
+   pass=(cr<=0)&&(acMa===null||ma<=acMa)&&(acMi===null||mi<=acMi);
+   const acEl=$("iqc-calc-ac");if(acEl)acEl.textContent="0 / "+(acMa===null?"-":acMa)+" / "+(acMi===null?"-":acMi);
+ } else {
+   const maP=sample>0?ma/sample:0,miP=sample>0?mi/sample:0;
+   pass=!(cr>0||maP>0.0065||miP>0.015);
+   const acEl=$("iqc-calc-ac");if(acEl)acEl.textContent="-";
+ }
  const el=$("iqc-calc-result");el.textContent=pass?"PASSED":"FAILED";el.className=pass?"pass":"fail";
  return{total,ng,pass};}
 function iqcReset(){$("iqc-form").reset();$("iqc-date-rec").value=todayStr();$("iqc-date-ins").value=todayStr();
@@ -518,8 +533,17 @@ function oqcCompute(){const sample=parseFloat($("oqc-sample").value)||0;
  const cr=parseInt($("oqc-critical").value)||0,ma=parseInt($("oqc-major").value)||0,mi=parseInt($("oqc-minor").value)||0;
  const total=cr+ma+mi;const ng=sample>0?total/sample:0;
  $("oqc-calc-ng").textContent=total;$("oqc-calc-ngpct").textContent=(ng*100).toFixed(2)+"%";
- const maP=sample>0?ma/sample:0,miP=sample>0?mi/sample:0;
- let pass=true;if(cr>0)pass=false;else if(maP>0.0065)pass=false;else if(miP>0.015)pass=false;
+ const letter=codeLetterFor(parseInt($("oqc-lotsize").value)||0,$("oqc-level").value);
+ let pass;
+ if(letter&&MASTER.aql.ac&&MASTER.aql.ac[letter]){
+   const acMa=acNumber(letter,"0.65"),acMi=acNumber(letter,"1.5");
+   pass=(cr<=0)&&(acMa===null||ma<=acMa)&&(acMi===null||mi<=acMi);
+   const acEl=$("oqc-calc-ac");if(acEl)acEl.textContent="0 / "+(acMa===null?"-":acMa)+" / "+(acMi===null?"-":acMi);
+ } else {
+   const maP=sample>0?ma/sample:0,miP=sample>0?mi/sample:0;
+   pass=!(cr>0||maP>0.0065||miP>0.015);
+   const acEl=$("oqc-calc-ac");if(acEl)acEl.textContent="-";
+ }
  const el=$("oqc-calc-result");el.textContent=pass?"PASSED":"FAILED";el.className=pass?"pass":"fail";
  return{total,ng,pass};}
 function oqcReset(){$("oqc-form").reset();$("oqc-date-rec").value=todayStr();$("oqc-date-ins").value=todayStr();
